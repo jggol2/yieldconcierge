@@ -178,7 +178,7 @@ export default function About() {
             Built for the saver who<br />wants the <em>real</em> answer
           </h1>
           <p className="about-lead">
-            Yield Concierge is an independent savings rate advisor. We don't take money from banks, we don't display ads, and we don't show you a ranked list of whoever paid the most. We tell you the rate you'd actually earn — and why.
+            Yield Concierge is an independent savings rate advisor. We don't display ads and we don't show you a ranked list of whoever paid the most. We tell you the rate you'd actually earn — and why.
           </p>
         </div>
 
@@ -189,7 +189,7 @@ export default function About() {
             <div className="about-section-label">Our mission</div>
             <h2 className="about-section-h">Why we built this</h2>
             <p className="about-p">
-              High-yield savings accounts are one of the simplest ways to earn meaningfully more on money you already have. But the tools most people use to find them — Bankrate, NerdWallet, and similar comparison sites — are pay-to-play platforms. Banks bid for top placement. The "recommended" account isn't the best one for you; it's the one that paid the highest referral fee.
+              High-yield savings accounts are one of the simplest ways to earn meaningfully more on money you already have. But the tools most people use to find them — such as comparison sites — are pay-to-play platforms. Banks bid for top placement. The "recommended" account isn't the best one for you; it's the one that paid the highest referral fee.
             </p>
             <p className="about-p">
               The problem runs deeper than just rankings. Most comparison sites show a bank's <strong>headline APY</strong> — the maximum rate achievable under the best possible conditions. But that's rarely what you'd actually earn. Many top-rate accounts require specific direct deposit amounts, minimum balances, debit card usage, or are only available to new customers. If you don't meet those conditions, the real rate can be dramatically lower.
@@ -282,7 +282,7 @@ export default function About() {
                 },
                 {
                   title: "No pressure, no upsells",
-                  body: "There is no email capture, no account required, no affiliate link, and nothing to buy. You come, you get your recommendation, you go open the account. That's it."
+                  body: "There is no email capture, no account required, and nothing to buy. You come, you get your recommendation, you go open the account. That's it."
                 }
               ].map((p) => (
                 <div key={p.title} className="principle">
