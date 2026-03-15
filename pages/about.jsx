@@ -178,7 +178,7 @@ export default function About() {
             Built for the saver who<br />wants the <em>real</em> answer
           </h1>
           <p className="about-lead">
-            Yield Concierge is an independent savings rate advisor. We don't display ads and we don't show you a ranked list of whoever paid the most. We tell you the rate you'd actually earn — and why.
+            Yield Concierge is an independent savings rate advisor. We don&apos;t display ads and we don&apos;t show you a ranked list of whoever paid the most. We tell you the rate you&apos;d actually earn — and why.
           </p>
         </div>
 
@@ -189,10 +189,10 @@ export default function About() {
             <div className="about-section-label">Our mission</div>
             <h2 className="about-section-h">Why we built this</h2>
             <p className="about-p">
-              High-yield savings accounts are one of the simplest ways to earn meaningfully more on money you already have. But the tools most people use to find them — such as comparison sites — are pay-to-play platforms. Banks bid for top placement. The "recommended" account isn't the best one for you; it's the one that paid the highest referral fee.
+              High-yield savings accounts are one of the simplest ways to earn meaningfully more on money you already have. But the tools most people use to find them — such as comparison sites — are pay-to-play platforms. Banks bid for top placement. The &quot;recommended&quot; account isn&apos;t the best one for you; it&apos;s the one that paid the highest referral fee.
             </p>
             <p className="about-p">
-              The problem runs deeper than just rankings. Most comparison sites show a bank's <strong>headline APY</strong> — the maximum rate achievable under the best possible conditions. But that's rarely what you'd actually earn. Many top-rate accounts require specific direct deposit amounts, minimum balances, debit card usage, or are only available to new customers. If you don't meet those conditions, the real rate can be dramatically lower.
+              The problem runs deeper than just rankings. Most comparison sites show a bank&apos;s <strong>headline APY</strong> — the maximum rate achievable under the best possible conditions. But that&apos;s rarely what you&apos;d actually earn. Many top-rate accounts require specific direct deposit amounts, minimum balances, debit card usage, or are only available to new customers. If you don&apos;t meet those conditions, the real rate can be dramatically lower.
             </p>
             <p className="about-p">
               Yield Concierge was built to solve both problems. We calculate the rate you personally qualify for at every bank — then verify it live before we say a word.
@@ -226,7 +226,7 @@ export default function About() {
                 {
                   n: "Stage 04",
                   title: "Concierge recommendation",
-                  body: "A single recommendation with full context: the verified APY, the qualifying tier, key perks, an honest caveat, your runner-up, and a live chat to answer any follow-up question."
+                  body: "A single recommendation with full context: the verified APY, the qualifying tier, key perks, an honest caveat, and your runner-up."
                 }
               ].map((m) => (
                 <div key={m.n} className="method-card">
@@ -246,7 +246,7 @@ export default function About() {
               Our database covers 20 curated institutions — a mix of online-only fintechs, digital bank subsidiaries, investment platforms with cash accounts, and select traditional banks included for users who specifically need branch access. Banks are chosen for relevance and rate competitiveness, not for any commercial relationship.
             </p>
             <p className="about-p">
-              Each bank's tier structure is maintained manually, with the full rate sheet updated after every Federal Reserve meeting and whenever a significant rate change is detected. Promotional rates include expiry dates so nothing is recommended past its window.
+              Each bank&apos;s tier structure is maintained manually, with the full rate sheet updated after every Federal Reserve meeting and whenever a significant rate change is detected. Promotional rates include expiry dates so nothing is recommended past its window.
             </p>
             <div className="banks-note">
               <div className="banks-note-label">Currently tracked</div>
@@ -301,7 +301,7 @@ export default function About() {
             <div className="about-section-label">Disclaimer</div>
             <h2 className="about-section-h">A note on accuracy</h2>
             <p className="about-p">
-              APYs are variable and change frequently. While we verify rates at the time of each session, we cannot guarantee that a rate hasn't changed between your session and when you go to open an account. Always confirm the current APY directly on the bank's official website before making any financial decision.
+              APYs are variable and change frequently. While we verify rates at the time of each session, we cannot guarantee that a rate hasn&apos;t changed between your session and when you go to open an account. Always confirm the current APY directly on the bank&apos;s official website before making any financial decision.
             </p>
             <p className="about-p">
               Yield Concierge does not provide financial advice. Our recommendations are informational and based on the profile you provide. Your actual qualifying rate, account features, and eligibility may differ from what is shown. We are not responsible for decisions made based on information provided through this tool.
