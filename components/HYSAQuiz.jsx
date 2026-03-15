@@ -242,7 +242,7 @@ async function runAgenticSearch(prompt, onSearch) {
 
   for (let i = 0; i < 6; i++) {
     const resp = await fetchWithTimeout(
-      "https://api.anthropic.com/v1/messages",
+      "/api/messages",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -913,7 +913,7 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
 
     try {
       const resp = await fetchWithTimeout(
-        "https://api.anthropic.com/v1/messages",
+        "/api/messages",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
