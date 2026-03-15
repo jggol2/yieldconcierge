@@ -248,7 +248,7 @@ async function runAgenticSearch(prompt, onSearch) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 6000,
+          max_tokens: 2000,
           tools,
           messages,
         }),
@@ -754,61 +754,48 @@ export default function HYSAQuiz() {
       .sort((a, b) => b.qualifyingApy - a.qualifyingApy);
 
     const eliminated = BANKS.filter(b => !ranked.find(r => r.id === b.id)).map(b => b.name);
-    const top7 = ranked.slice(0, 7);
+    const top4 = ranked.slice(0, 4); // verify top 4 only — each search returns ~1,000 tokens of results
 
-    const getLabel = (qId, val) => {
-      const q = QUESTIONS.find(q => q.id === qId);
-      if (!q) return String(val);
-      if (Array.isArray(val)) return val.map(v => q.options.find(o => o.value === v)?.label || v).join(", ");
-      return q.options.find(o => o.value === val)?.label || String(val);
-    };
+    // Compact profile — short keys instead of full question text saves ~250 tokens
+    const profileStr = [
+      `balance:${ans.balance}`,
+      `purpose:${ans.purpose || "—"}`,
+      `dd:${ans.direct_deposit}`,
+      `existing:${Array.isArray(ans.existing_customer) ? ans.existing_customer.join(",") : "—"}`,
+      `access:${ans.access_speed || "—"}`,
+      `conditions:${ans.conditions_comfort || "—"}`,
+      `branch:${ans.branch || "—"}`,
+      `debit:${ans.debit || "—"}`,
+      `investing:${ans.investing || "—"}`,
+      `fees:${ans.fees || "—"}`,
+    ].join(" | ");
 
-    const profileStr = QUESTIONS.map(q => `  ${q.question}: ${getLabel(q.id, ans[q.id] || "—")}`).join("\n");
+    const prompt = `You are an unbiased HYSA expert. Verify current rates then recommend the best account for this user.
 
-    const prompt = `You are an unbiased HYSA expert. A user has completed a detailed savings account profile. Your job: (1) verify current rates via web search, then (2) provide a tailored recommendation.
+STEP 1 — VERIFY: Search official sites or NerdWallet/Bankrate for current APY and conditions for each bank.
 
-STEP 1 — WEB VERIFICATION
-Search the official website and/or reputable aggregators (NerdWallet, Bankrate, CNBC Select, Motley Fool) for each bank below. Prioritize recency — use March 2026 sources where available.
-For each bank search: "[bank name] high yield savings APY 2026" or "[bank name] savings rate March 2026".
-Verify conditions, any recent rate changes, and promo expiry dates for the top 5-6 banks.
+BANKS (qualifying APYs pre-calculated):
+${top4.map((b,i) => `${i+1}. ${b.name} — ${b.qualifyingApy.toFixed(2)}% | ${b.tierLabel} | Branch:${b.branch?'Y':'N'} Debit:${b.debit?'Y':'N'} Invest:${b.investing?'Y':'N'}`).join('\n')}
 
-BANKS TO VERIFY (qualifying APYs pre-calculated for this user's profile):
-${top7.map((b,i) => `  ${i+1}. ${b.name} — stored APY: ${b.qualifyingApy.toFixed(2)}% | Tier: ${b.tierLabel} | Branch:${b.branch?'Y':'N'} Debit:${b.debit?'Y':'N'} Invest:${b.investing?'Y':'N'}`).join('\n')}
+USER: ${profileStr}
 
-ELIMINATED BANKS: ${eliminated.join(', ')}
-
-USER PROFILE:
-${profileStr}
-
-STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
+STEP 2 — JSON ONLY (no markdown, no backticks):
 {
-  "verified_rates": [
-    {
-      "bank": "name",
-      "our_apy": number,
-      "live_apy": number,
-      "changed": boolean,
-      "direction": "up"|"down"|"same",
-      "source": "source name",
-      "source_date": "e.g. March 2026",
-      "conditions_note": "brief note on key conditions or anything that changed",
-      "promo_expiry": "expiry info or null"
-    }
-  ],
-  "bank": "recommended bank name",
+  "verified_rates": [{"bank":"name","our_apy":number,"live_apy":number,"changed":boolean,"direction":"up"|"down"|"same","source":"name","source_date":"date","conditions_note":"brief note","promo_expiry":"info or null"}],
+  "bank": "name",
   "account": "account name",
   "apy": number,
-  "tier_label": "qualifying tier",
+  "tier_label": "tier",
   "rate_confidence": "confirmed"|"likely current"|"unverified",
-  "verification_note": "one sentence: what you found when you looked this up today",
-  "headline": "max 12 words — punchy, specific to this user's situation",
-  "summary": "2-3 sentences, plain English, directly tied to their profile — purpose, balance, DD setup, etc.",
-  "top_perks": ["perk 1", "perk 2", "perk 3"],
-  "watch_out": "one genuine caveat specific to this user",
-  "runner_up": "second bank name",
+  "verification_note": "one sentence",
+  "headline": "max 12 words",
+  "summary": "2-3 sentences tied to their profile",
+  "top_perks": ["perk 1","perk 2","perk 3"],
+  "watch_out": "one caveat",
+  "runner_up": "bank name",
   "runner_up_apy": number,
-  "runner_up_reason": "one sentence why it's a strong second for THIS user",
-  "why_not_others": "one sentence on why other top options were passed over for this user"
+  "runner_up_reason": "one sentence",
+  "why_not_others": "one sentence"
 }`;
 
     try {
