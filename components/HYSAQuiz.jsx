@@ -60,7 +60,7 @@ const TIERS = [
   { bank:"bask",        label:"Standard Rate (no conditions)",                     apy:3.75, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
 ];
 
-// ─── QUESTIONS (10 total) ─────────────────────────────────────────────────────
+// ─── QUESTIONS (11 total) ─────────────────────────────────────────────────────
 const QUESTIONS = [
   {
     id: "balance",
@@ -319,42 +319,38 @@ async function runAgenticSearch(prompt, onSearch) {
 
 // ─── CHAT HELPERS ─────────────────────────────────────────────────────────────
 function buildSystemPrompt(answers, result) {
-  const getLabel = (qId, val) => {
-    const q = QUESTIONS.find(q => q.id === qId);
-    if (!q) return val;
-    if (Array.isArray(val)) return val.join(", ");
-    return q.options.find(o => o.value === val)?.label || val;
-  };
-  const profileLines = QUESTIONS.map(q => `  ${q.question}: ${getLabel(q.id, answers[q.id] || "—")}`).join("\n");
-  const rankedLines  = (result.allRanked || []).map(b => `  - ${b.name}: ${b.qualifyingApy.toFixed(2)}% APY (${b.tierLabel})`).join("\n");
-  const verifiedLines = (result.verified_rates || []).map(v => `  - ${v.bank}: ${v.live_apy}% confirmed via ${v.source} (${v.source_date})`).join("\n");
+  // Keep the system prompt lean — new Anthropic accounts have a 30k token/min limit.
+  // Only include what Claude genuinely needs to answer follow-up questions.
 
-  return `You are a sharp, concise HYSA (High-Yield Savings Account) concierge advisor. The user has completed a full profile assessment and received their recommendation. You have complete context on their situation.
+  const balLabel  = QUESTIONS[0].options.find(o => o.value === answers.balance)?.label || answers.balance;
+  const ddLabel   = QUESTIONS[2].options.find(o => o.value === answers.direct_deposit)?.label || answers.direct_deposit;
+  const existingAt = Array.isArray(answers.existing_customer)
+    ? answers.existing_customer.filter(v => v !== "none").join(", ") || "none"
+    : "none";
 
-RECOMMENDATION GIVEN:
-  Bank: ${result.bank} — ${result.account}
-  APY: ${result.apy}%
-  Tier: ${result.tier_label}
-  Summary: ${result.summary}
-  Runner-up: ${result.runner_up} at ${result.runner_up_apy}%
+  // Top 6 qualifying banks only
+  const topBanks = (result.allRanked || []).slice(0, 6)
+    .map(b => `${b.name}: ${b.qualifyingApy.toFixed(2)}% (${b.tierLabel})`)
+    .join("; ");
 
-USER PROFILE:
-${profileLines}
+  // Verified rates condensed to one line each
+  const verified = (result.verified_rates || []).slice(0, 6)
+    .map(v => `${v.bank} ${v.live_apy}% via ${v.source}`)
+    .join("; ");
 
-ALL QUALIFYING BANKS FOR THIS USER (pre-calculated):
-${rankedLines}
+  return `You are a concise HYSA concierge advisor. The user just received their savings account recommendation. Answer follow-up questions directly and specifically — 2–4 sentences max unless a detailed comparison is requested.
 
-LIVE-VERIFIED RATES (from web search on ${new Date().toLocaleDateString()}):
-${verifiedLines}
+RECOMMENDATION: ${result.bank} — ${result.account} — ${result.apy}% APY (${result.tier_label})
+Runner-up: ${result.runner_up} at ${result.runner_up_apy}%
+Watch out: ${result.watch_out}
 
-INSTRUCTIONS:
-- Be direct, specific, and conversational — like a trusted financial advisor, not a chatbot
-- Keep responses to 2–4 sentences unless a detailed comparison is explicitly requested
-- Always tie your answer back to their specific profile (their balance, DD setup, purpose, etc.)
-- If they describe a constraint that changes the recommendation, update it immediately
-- If they ask about a bank not on the qualifying list, explain concisely why it didn't qualify for them
-- If a rate may have changed, note that they should verify directly
-- Never be generic. Every answer should feel like it's for this specific person.`;
+USER PROFILE: Balance ${balLabel} | DD: ${ddLabel} | Purpose: ${answers.purpose || "—"} | Access: ${answers.access_speed || "—"} | Branch: ${answers.branch || "—"} | Debit: ${answers.debit || "—"} | Investing: ${answers.investing || "—"} | Fees: ${answers.fees || "—"} | Conditions: ${answers.conditions_comfort || "—"} | Existing customer at: ${existingAt}
+
+TOP QUALIFYING BANKS: ${topBanks}
+
+VERIFIED RATES: ${verified}
+
+Be specific to this user's profile. Never give generic advice.`;
 }
 
 function generateChips(result, answers) {
@@ -977,7 +973,7 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
               </div>
               <h1 className="intro-h">Yield<br/><em>Concierge</em></h1>
               <p className="intro-p">
-                10 questions. We calculate your real qualifying rate across a set of curated banks, scan live sources to verify every APY, then let you refine the recommendation through a private conversation.
+                11 questions. We calculate your real qualifying rate across a set of curated banks, scan live sources to verify every APY, then let you refine the recommendation through a private conversation.
               </p>
               <div className="trust-row">
                 {["Live rate verification","No ads or paid rankings","Curated banks analyzed","Ask follow-up questions"].map((t,i) => (
