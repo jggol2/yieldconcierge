@@ -24,7 +24,7 @@ const BANKS = [
   { id:"bask",        name:"Bask Bank",               account:"Interest Savings",            baseApy:3.75, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Division of Texas Capital Bank. Flat 3.75%. Promo 4.00% for new accounts with $10k+ avg monthly balance through May 31, 2026 (open by Mar 31, 2026). Also offers American Airlines miles variant." },
 ];
 
-// ─── TIERS (newCustomerOnly flag added) ───────────────────────────────────────
+// ─── TIERS ────────────────────────────────────────────────────────────────────
 const TIERS = [
   { bank:"sofi",        label:"SoFi Plus Promo (new customers only)",              apy:4.00, minBal:0,      reqDD:true,  minDD:0,    newMoney:false, newCustomerOnly:true,  sort:1 },
   { bank:"sofi",        label:"Standard with Direct Deposit",                      apy:3.30, minBal:0,      reqDD:true,  minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
@@ -60,7 +60,7 @@ const TIERS = [
   { bank:"bask",        label:"Standard Rate (no conditions)",                     apy:3.75, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
 ];
 
-// ─── QUESTIONS (11 total) ─────────────────────────────────────────────────────
+// ─── QUESTIONS (10 total) ─────────────────────────────────────────────────────
 const QUESTIONS = [
   {
     id: "balance",
@@ -186,30 +186,25 @@ function getQualifyingAPY(bank, answers) {
   const hasDD  = ddAmt > 0;
   const existingAt = Array.isArray(answers.existing_customer) ? answers.existing_customer : [];
   const isExisting = existingAt.includes(bank.id);
-  // If user is not an existing customer at this bank, their funds are new money by definition
   const isNew  = !isExisting;
   const condComfort = answers.conditions_comfort || "some";
   const skipActiveConds = condComfort === "no";
 
-  // Hard exclusions
-  if (answers.branch === "required" && !bank.branch)           return null;
-  if (answers.debit === "yes" && !bank.debit)                  return null;
-  if (answers.investing === "yes" && !bank.investing)          return null;
+  if (answers.branch === "required" && !bank.branch)                return null;
+  if (answers.debit === "yes" && !bank.debit)                       return null;
+  if (answers.investing === "yes" && !bank.investing)               return null;
   if (answers.fees === "zero" && bank.fee > 0 && !bank.feeWaivable) return null;
-  if (balEst < bank.minOpen)                                   return null;
-  // Slow-transfer exclusion for urgent access needs
-  if (answers.access_speed === "urgent" && bank.slowTransfer)  return null;
+  if (balEst < bank.minOpen)                                        return null;
+  if (answers.access_speed === "urgent" && bank.slowTransfer)       return null;
 
-  const bankTiers = TIERS
-    .filter(t => t.bank === bank.id)
-    .sort((a, b) => a.sort - b.sort);
+  const bankTiers = TIERS.filter(t => t.bank === bank.id).sort((a, b) => a.sort - b.sort);
 
   for (const tier of bankTiers) {
-    if (balEst < tier.minBal)                                              continue;
-    if (tier.newCustomerOnly && isExisting)                                continue; // no promo for existing customers
-    if (tier.newMoney && !isNew)                                           continue;
-    if (tier.reqDD && (skipActiveConds || !hasDD))                         continue; // skip DD tiers if no conditions
-    if (tier.reqDD && tier.minDD > 0 && ddAmt < tier.minDD)               continue;
+    if (balEst < tier.minBal)                                  continue;
+    if (tier.newCustomerOnly && isExisting)                    continue;
+    if (tier.newMoney && !isNew)                               continue;
+    if (tier.reqDD && (skipActiveConds || !hasDD))             continue;
+    if (tier.reqDD && tier.minDD > 0 && ddAmt < tier.minDD)   continue;
     return { apy: tier.apy, tierLabel: tier.label };
   }
 
@@ -232,28 +227,16 @@ async function fetchWithTimeout(url, options, timeoutMs = 90000) {
 }
 
 // ─── AGENTIC WEB SEARCH ───────────────────────────────────────────────────────
-// web_search_20250305 is server-side: Anthropic executes all searches internally
-// within a single API call and returns end_turn. We loop only to handle the rare
-// case where the model emits tool_use with stop_reason="tool_use" (client-side
-// tool interop mode), providing real tool_result responses each time.
 async function runAgenticSearch(prompt, onSearch) {
   const tools = [{ type: "web_search_20250305", name: "web_search" }];
   let messages = [{ role: "user", content: prompt }];
 
   for (let i = 0; i < 6; i++) {
-    const resp = await fetchWithTimeout(
-      "/api/messages",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
-          tools,
-          messages,
-        }),
-      }
-    );
+    const resp = await fetchWithTimeout("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 2000, tools, messages }),
+    });
 
     if (!resp.ok) {
       const errBody = await resp.text().catch(() => "");
@@ -263,53 +246,26 @@ async function runAgenticSearch(prompt, onSearch) {
     const data = await resp.json();
     const content = data.content || [];
 
-    // Surface search queries to the UI
     content
       .filter(b => b.type === "tool_use" && b.name === "web_search")
       .forEach(b => b.input?.query && onSearch(b.input.query));
 
-    // Also capture server-side search result queries from web_search_result blocks
-    content
-      .filter(b => b.type === "web_search_tool_result" || (b.type === "tool_result" && b.name === "web_search"))
-      .forEach(b => {
-        // queries already surfaced above via tool_use blocks
-      });
-
     const textContent = content.filter(b => b.type === "text").map(b => b.text).join("\n");
 
-    if (data.stop_reason === "end_turn") {
-      return textContent;
-    }
+    if (data.stop_reason === "end_turn") return textContent;
 
     if (data.stop_reason === "tool_use") {
-      // Push assistant turn
       messages.push({ role: "assistant", content });
-
-      // Find any tool_use blocks that don't yet have a tool_result in this content array
-      const pendingToolUse = content.filter(
-        b => b.type === "tool_use" &&
-             !content.find(x => x.type === "tool_result" && x.tool_use_id === b.id)
+      const pending = content.filter(
+        b => b.type === "tool_use" && !content.find(x => x.type === "tool_result" && x.tool_use_id === b.id)
       );
-
-      if (pendingToolUse.length > 0) {
-        // Provide tool_result for each pending tool_use
-        messages.push({
-          role: "user",
-          content: pendingToolUse.map(b => ({
-            type: "tool_result",
-            tool_use_id: b.id,
-            content: "Search completed. Please continue with your analysis.",
-          })),
-        });
-      } else {
-        // All tool_use blocks already have results — just continue
-        // (server-side tool already handled everything)
-        messages.push({ role: "user", content: "Please continue with your analysis and provide the JSON response." });
-      }
+      messages.push(pending.length > 0
+        ? { role: "user", content: pending.map(b => ({ type: "tool_result", tool_use_id: b.id, content: "Search completed. Please continue." })) }
+        : { role: "user", content: "Please continue with your analysis and provide the JSON response." }
+      );
       continue;
     }
 
-    // max_tokens or other stop reason — return whatever text we have
     if (textContent) return textContent;
     throw new Error(`Unexpected stop reason: ${data.stop_reason}`);
   }
@@ -322,8 +278,8 @@ const PHASES = [
   "Calculating your qualifying rates…",
   "Scanning official bank websites for current APYs…",
   "Verifying promotional conditions and expiry dates…",
-  "Analyzing your profile against live data…",
-  "Drafting your personalized recommendation…",
+  "Rates verified — drafting your recommendation…",
+  "Almost done…",
 ];
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -331,64 +287,23 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-.root{
-  min-height:100vh;
-  background:#09090f;
-  font-family:'DM Sans',sans-serif;
-  color:#ddd8ce;
-  display:flex;flex-direction:column;align-items:center;
-  padding:0 16px 120px;
-  position:relative;overflow-x:hidden;
-}
-
-/* background */
-.bg-lines{
-  position:fixed;inset:0;pointer-events:none;z-index:0;
-  background-image:
-    linear-gradient(rgba(200,169,110,.03) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(200,169,110,.03) 1px,transparent 1px);
-  background-size:56px 56px;
-}
-.bg-glow{
-  position:fixed;top:-400px;left:50%;transform:translateX(-50%);
-  width:1000px;height:700px;pointer-events:none;z-index:0;
-  background:radial-gradient(ellipse,rgba(200,169,110,.06) 0%,transparent 60%);
-}
-
+.root{min-height:100vh;background:#09090f;font-family:'DM Sans',sans-serif;color:#ddd8ce;display:flex;flex-direction:column;align-items:center;padding:0 16px 120px;position:relative;overflow-x:hidden;}
+.bg-lines{position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(200,169,110,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(200,169,110,.03) 1px,transparent 1px);background-size:56px 56px;}
+.bg-glow{position:fixed;top:-400px;left:50%;transform:translateX(-50%);width:1000px;height:700px;pointer-events:none;z-index:0;background:radial-gradient(ellipse,rgba(200,169,110,.06) 0%,transparent 60%);}
 .shell{position:relative;z-index:1;width:100%;max-width:660px;}
 
-/* ── INTRO ── */
 .intro{text-align:center;padding:72px 0 44px;animation:up .7s cubic-bezier(.22,1,.36,1) both;}
-.intro-tag{
-  display:inline-flex;align-items:center;gap:8px;
-  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;
-  color:#c8a96e;border:1px solid rgba(200,169,110,.2);
-  padding:6px 14px;margin-bottom:28px;
-}
+.intro-tag{display:inline-flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:#c8a96e;border:1px solid rgba(200,169,110,.2);padding:6px 14px;margin-bottom:28px;}
 .intro-tag-dot{width:5px;height:5px;border-radius:50%;background:#c8a96e;animation:pulse 2s ease infinite;}
-.intro-h{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(36px,6vw,56px);font-weight:500;line-height:1.08;
-  color:#f0ece2;margin-bottom:18px;letter-spacing:-.5px;
-}
+.intro-h{font-family:'Cormorant Garamond',serif;font-size:clamp(36px,6vw,56px);font-weight:500;line-height:1.08;color:#f0ece2;margin-bottom:18px;letter-spacing:-.5px;}
 .intro-h em{font-style:italic;color:#c8a96e;}
 .intro-p{font-size:15px;color:#9a9690;line-height:1.7;max-width:480px;margin:0 auto 36px;}
-.trust-row{
-  display:flex;justify-content:center;gap:24px;flex-wrap:wrap;
-  margin-bottom:36px;
-}
+.trust-row{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-bottom:36px;}
 .trust-item{font-size:11px;color:#706c66;letter-spacing:.5px;display:flex;align-items:center;gap:6px;}
 .trust-pip{width:3px;height:3px;border-radius:50%;background:#c8a96e55;}
-.cta{
-  display:inline-flex;align-items:center;gap:12px;
-  background:#c8a96e;color:#09090f;
-  font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;
-  padding:16px 40px;border:none;cursor:pointer;
-  transition:all .2s;letter-spacing:.3px;
-}
+.cta{display:inline-flex;align-items:center;gap:12px;background:#c8a96e;color:#09090f;font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;padding:16px 40px;border:none;cursor:pointer;transition:all .2s;letter-spacing:.3px;}
 .cta:hover{background:#d4b87a;transform:translateY(-2px);box-shadow:0 12px 32px rgba(200,169,110,.18);}
 
-/* ── PROGRESS ── */
 .prog-wrap{padding:48px 0 44px;}
 .prog-bar{height:1px;background:#1e2535;position:relative;}
 .prog-fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#c8a96e,#d4c090);transition:width .5s cubic-bezier(.22,1,.36,1);}
@@ -396,24 +311,12 @@ const CSS = `
 .prog-n{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;color:#3e4455;}
 .prog-n.active{color:#c8a96e;}
 
-/* ── QUESTION ── */
 .q-wrap{animation:up .4s cubic-bezier(.22,1,.36,1) both;}
 .q-num{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:#c8a96e;margin-bottom:10px;}
-.q-title{
-  font-family:'Cormorant Garamond',serif;
-  font-size:clamp(22px,4vw,32px);font-weight:500;line-height:1.2;
-  color:#f0ece2;margin-bottom:8px;
-}
+.q-title{font-family:'Cormorant Garamond',serif;font-size:clamp(22px,4vw,32px);font-weight:500;line-height:1.2;color:#f0ece2;margin-bottom:8px;}
 .q-sub{font-size:13px;color:#8a8680;margin-bottom:28px;line-height:1.55;}
-
 .opts{display:flex;flex-direction:column;gap:8px;margin-bottom:28px;}
-.opt{
-  display:flex;align-items:center;gap:14px;
-  padding:14px 18px;
-  border:1px solid #1e2535;background:#0d1020;
-  cursor:pointer;transition:all .15s;
-  color:#c0bcb4;font-size:14px;
-}
+.opt{display:flex;align-items:center;gap:14px;padding:14px 18px;border:1px solid #1e2535;background:#0d1020;cursor:pointer;transition:all .15s;color:#c0bcb4;font-size:14px;}
 .opt:hover{border-color:rgba(200,169,110,.3);background:#101524;color:#ddd8ce;}
 .opt.active{border-color:#c8a96e;background:#131828;color:#f0ece2;}
 .opt.multi-exclusive{border-style:dashed;}
@@ -423,65 +326,31 @@ const CSS = `
 .opt.active .radio-dot{opacity:1;}
 .checkbox{width:16px;height:16px;border:1.5px solid #2e3548;flex-shrink:0;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;}
 .opt.active .checkbox{border-color:#c8a96e;background:#c8a96e;color:#09090f;}
-
 .multi-hint{font-size:11px;color:#6a7080;margin-bottom:10px;font-family:'DM Mono',monospace;letter-spacing:.5px;}
-
 .nav{display:flex;gap:10px;}
-.btn-next{
-  flex:1;padding:14px;
-  background:#c8a96e;color:#09090f;
-  font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;
-  border:none;cursor:pointer;transition:all .18s;
-}
+.btn-next{flex:1;padding:14px;background:#c8a96e;color:#09090f;font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;border:none;cursor:pointer;transition:all .18s;}
 .btn-next:hover:not(:disabled){background:#d4b87a;}
 .btn-next:disabled{background:#1a2030;color:#3a404e;cursor:not-allowed;}
-.btn-back{
-  padding:14px 18px;background:transparent;
-  border:1px solid #1e2535;color:#706c66;font-family:'DM Sans',sans-serif;font-size:14px;
-  cursor:pointer;transition:all .18s;
-}
+.btn-back{padding:14px 18px;background:transparent;border:1px solid #1e2535;color:#706c66;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .18s;}
 .btn-back:hover{border-color:#3a4255;color:#a8a49c;}
 
-/* ── LOADING ── */
 .loading{padding:88px 0;text-align:center;animation:up .5s cubic-bezier(.22,1,.36,1) both;}
 .spin-outer{width:52px;height:52px;margin:0 auto 32px;position:relative;}
-.spin-ring{
-  width:100%;height:100%;border-radius:50%;
-  border:1px solid #1e2535;border-top-color:#c8a96e;
-  animation:spin .9s linear infinite;
-}
-.spin-inner{
-  position:absolute;top:6px;left:6px;right:6px;bottom:6px;border-radius:50%;
-  border:1px solid #0d1020;border-bottom-color:rgba(200,169,110,.35);
-  animation:spin 1.4s linear infinite reverse;
-}
+.spin-ring{width:100%;height:100%;border-radius:50%;border:1px solid #1e2535;border-top-color:#c8a96e;animation:spin .9s linear infinite;}
+.spin-inner{position:absolute;top:6px;left:6px;right:6px;bottom:6px;border-radius:50%;border:1px solid #0d1020;border-bottom-color:rgba(200,169,110,.35);animation:spin 1.4s linear infinite reverse;}
 .load-phase{font-family:'Cormorant Garamond',serif;font-size:22px;color:#f0ece2;margin-bottom:6px;min-height:34px;}
 .load-eta{font-family:'DM Mono',monospace;font-size:10px;color:#5a6070;letter-spacing:1px;margin-bottom:32px;}
 .search-log{max-width:440px;margin:0 auto;text-align:left;}
 .search-log-hdr{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:#4a5265;margin-bottom:10px;text-transform:uppercase;}
-.search-item{
-  display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:11px;color:#6a7280;
-  padding:7px 0;border-bottom:1px solid #141820;line-height:1.4;
-  animation:up .3s ease both;
-}
+.search-item{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:11px;color:#6a7280;padding:7px 0;border-bottom:1px solid #141820;line-height:1.4;animation:up .3s ease both;}
 .search-tick{color:#c8a96e88;flex-shrink:0;}
 
-/* ── RESULT ── */
 .result{animation:up .6s cubic-bezier(.22,1,.36,1) both;padding-top:48px;}
-
-.section-hdr{
-  display:flex;align-items:center;gap:14px;
-  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;
-  color:#c8a96e;margin-bottom:16px;
-}
+.section-hdr{display:flex;align-items:center;gap:14px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:#c8a96e;margin-bottom:16px;}
 .section-hdr::after{content:'';flex:1;height:1px;background:#1e2535;}
 
-/* verify panel */
 .verify-grid{display:flex;flex-direction:column;gap:6px;margin-bottom:32px;}
-.v-row{
-  display:flex;align-items:flex-start;gap:12px;
-  padding:11px 14px;background:#0c0f1c;border:1px solid #1a2030;
-}
+.v-row{display:flex;align-items:flex-start;gap:12px;padding:11px 14px;background:#0c0f1c;border:1px solid #1a2030;}
 .v-name{font-size:13px;color:#a8a49c;font-weight:500;flex:1;min-width:120px;}
 .v-meta{flex:2;}
 .v-cond{font-size:11px;color:#7a7670;line-height:1.5;margin-top:2px;}
@@ -489,189 +358,81 @@ const CSS = `
 .v-apy-col{text-align:right;min-width:76px;}
 .v-apy{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;}
 .v-src{font-family:'DM Mono',monospace;font-size:9px;color:#5a6070;margin-top:2px;}
-.v-badge{
-  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.5px;
-  padding:3px 7px;flex-shrink:0;align-self:flex-start;
-}
+.v-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.5px;padding:3px 7px;flex-shrink:0;align-self:flex-start;}
 .v-conf{color:#4a9e6a;background:rgba(74,158,106,.12);}
-.v-up  {color:#c8a96e;background:rgba(200,169,110,.12);}
-.v-dn  {color:#c07070;background:rgba(192,112,112,.12);}
+.v-up{color:#c8a96e;background:rgba(200,169,110,.12);}
+.v-dn{color:#c07070;background:rgba(192,112,112,.12);}
 .v-same{color:#7a9ab8;background:rgba(122,154,184,.12);}
-.v-green{color:#4a9e6a;}
-.v-gold {color:#c8a96e;}
-.v-red  {color:#c07070;}
-.v-blue {color:#7a9ab8;}
+.v-green{color:#4a9e6a;}.v-gold{color:#c8a96e;}.v-red{color:#c07070;}.v-blue{color:#7a9ab8;}
 
-/* rec card */
-.rec-card{
-  background:#0d1020;border:1px solid rgba(200,169,110,.2);
-  padding:32px 30px 28px;position:relative;overflow:hidden;
-  margin-bottom:10px;
-}
-.rec-card::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,#c8a96e,#d4c090,#c8a96e,transparent);
-}
+.rec-card{background:#0d1020;border:1px solid rgba(200,169,110,.2);padding:32px 30px 28px;position:relative;overflow:hidden;margin-bottom:10px;}
+.rec-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#c8a96e,#d4c090,#c8a96e,transparent);}
 .rec-top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px;}
 .rec-bankname{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#c8a96e;}
-.rec-conf{
-  font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.5px;
-  padding:3px 8px;flex-shrink:0;
-}
-.conf-ok    {background:rgba(74,158,106,.12); color:#4a9e6a;}
+.rec-conf{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.5px;padding:3px 8px;flex-shrink:0;}
+.conf-ok{background:rgba(74,158,106,.12);color:#4a9e6a;}
 .conf-approx{background:rgba(122,154,184,.12);color:#7a9ab8;}
-.conf-warn  {background:rgba(192,112,112,.12);color:#c07070;}
+.conf-warn{background:rgba(192,112,112,.12);color:#c07070;}
 .rec-acct{font-size:12px;color:#7a7670;margin-bottom:20px;}
 .apy-row{display:flex;align-items:baseline;gap:6px;margin-bottom:4px;}
 .apy-n{font-family:'Cormorant Garamond',serif;font-size:64px;font-weight:500;color:#f0ece2;line-height:1;}
 .apy-pct{font-size:22px;color:#c8a96e;font-weight:600;font-family:'DM Sans',sans-serif;}
 .tier-lbl{font-family:'DM Mono',monospace;font-size:10px;color:#5a6070;margin-bottom:6px;}
 .v-note-inline{font-size:12px;color:#8a8680;line-height:1.55;margin-bottom:20px;}
-.rec-hl{
-  font-family:'Cormorant Garamond',serif;font-size:19px;font-style:italic;
-  color:#ddd8d0;line-height:1.4;margin-bottom:14px;
-}
+.rec-hl{font-family:'Cormorant Garamond',serif;font-size:19px;font-style:italic;color:#ddd8d0;line-height:1.4;margin-bottom:14px;}
 .rec-summary{font-size:14px;color:#a8a49c;line-height:1.75;margin-bottom:24px;}
 .perks{display:flex;flex-direction:column;gap:9px;margin-bottom:20px;}
 .perk{display:flex;gap:10px;font-size:13.5px;color:#b0aca4;line-height:1.5;}
 .perk-ico{color:#c8a96e;flex-shrink:0;font-size:10px;margin-top:3px;}
-.watchout{
-  background:#080a15;border-left:2px solid rgba(200,169,110,.25);
-  padding:12px 16px;font-size:13px;color:#8a8680;line-height:1.6;
-}
+.watchout{background:#080a15;border-left:2px solid rgba(200,169,110,.25);padding:12px 16px;font-size:13px;color:#8a8680;line-height:1.6;}
 .watchout b{color:#c8a96e;}
 
-/* runner-up / others */
 .sub-card{background:#090c18;border:1px solid #1a2030;padding:18px 22px;margin-bottom:8px;}
 .sub-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
 .sub-lbl{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#4a5265;margin-bottom:4px;}
 .sub-name{font-size:16px;color:#c8c4bc;font-weight:500;}
-.sub-apy{font-family:'DM Mono',monospace;font-size:18px;color:#9a9690;}.sub-apy span{font-size:11px;color:#6a6660;}
+.sub-apy{font-family:'DM Mono',monospace;font-size:18px;color:#9a9690;}
+.sub-apy span{font-size:11px;color:#6a6660;}
 .sub-reason{font-size:13px;color:#8a8680;line-height:1.55;}
 
-/* all rates */
-.rates-toggle{
-  width:100%;padding:13px 18px;background:transparent;
-  border:1px solid #1a2030;color:#7a7670;
-  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.5px;
-  cursor:pointer;text-align:left;display:flex;justify-content:space-between;
-  align-items:center;transition:all .18s;margin-bottom:8px;
-}
+.rates-toggle{width:100%;padding:13px 18px;background:transparent;border:1px solid #1a2030;color:#7a7670;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.5px;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;transition:all .18s;margin-bottom:8px;}
 .rates-toggle:hover{border-color:#3a4255;color:#a8a49c;}
 .rates-tbl{width:100%;border-collapse:collapse;margin-bottom:12px;}
-.rates-tbl th{
-  text-align:left;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;
-  color:#4a5265;padding:9px 12px;border-bottom:1px solid #1a2030;
-}
+.rates-tbl th{text-align:left;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#4a5265;padding:9px 12px;border-bottom:1px solid #1a2030;}
 .rates-tbl td{padding:10px 12px;font-size:12.5px;color:#8a8680;border-bottom:1px solid #0e1220;}
 .rates-tbl tr:first-child td{color:#c8a96e;}
 .td-apy{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;}
 
-/* ── CHAT ── */
-.chat-section{margin-top:40px;}
-.chat-intro{
-  font-family:'Cormorant Garamond',serif;font-style:italic;
-  font-size:19px;color:#9a9690;line-height:1.5;margin-bottom:24px;
-  padding-bottom:24px;border-bottom:1px solid #1a2030;
-}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;}
-.chip{
-  font-size:12px;color:#8a8680;border:1px solid #1e2535;background:#0c0f1c;
-  padding:8px 14px;cursor:pointer;transition:all .15s;
-  font-family:'DM Sans',sans-serif;line-height:1.3;
-}
-.chip:hover{border-color:rgba(200,169,110,.35);color:#c0bcb4;background:#0f1220;}
-
-.chat-thread{
-  display:flex;flex-direction:column;gap:16px;margin-bottom:20px;
-  max-height:500px;overflow-y:auto;padding-right:4px;
-}
-.chat-thread::-webkit-scrollbar{width:3px;}
-.chat-thread::-webkit-scrollbar-track{background:#09090f;}
-.chat-thread::-webkit-scrollbar-thumb{background:#2a3040;}
-.msg-user{
-  align-self:flex-end;max-width:80%;
-  background:#131828;border:1px solid rgba(200,169,110,.22);
-  padding:12px 16px;font-size:14px;color:#ddd8ce;line-height:1.55;
-}
-.msg-assistant{
-  align-self:flex-start;max-width:88%;
-  background:#0c0f1c;border:1px solid #1a2030;
-  padding:14px 18px;font-size:14px;color:#b0aca4;line-height:1.7;
-}
-.msg-assistant p{margin-bottom:8px;}
-.msg-assistant p:last-child{margin-bottom:0;}
-.msg-thinking{
-  align-self:flex-start;padding:12px 18px;
-  background:#0c0f1c;border:1px solid #1a2030;
-  font-family:'DM Mono',monospace;font-size:11px;color:#6a7080;
-}
-.dots span{animation:blink 1.4s ease infinite;}
-.dots span:nth-child(2){animation-delay:.2s;}
-.dots span:nth-child(3){animation-delay:.4s;}
-
-.chat-input-row{display:flex;gap:8px;}
-.chat-input{
-  flex:1;background:#0c0f1c;border:1px solid #1e2535;color:#ddd8ce;
-  font-family:'DM Sans',sans-serif;font-size:14px;
-  padding:13px 16px;outline:none;resize:none;
-  transition:border-color .15s;min-height:48px;max-height:120px;
-}
-.chat-input:focus{border-color:rgba(200,169,110,.4);}
-.chat-input::placeholder{color:#4a5265;}
-.chat-send{
-  background:#c8a96e;color:#09090f;border:none;
-  padding:13px 20px;cursor:pointer;transition:all .18s;
-  font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;
-  flex-shrink:0;align-self:flex-start;
-}
-.chat-send:hover:not(:disabled){background:#d4b87a;}
-.chat-send:disabled{background:#1a2030;color:#3a404e;cursor:not-allowed;}
-
-/* restart / disclaimer */
-.restart{
-  width:100%;padding:13px;background:transparent;
-  border:1px solid #1a2030;color:#6a6660;
-  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.5px;
-  cursor:pointer;transition:all .18s;margin-top:8px;
-}
+.restart{width:100%;padding:13px;background:transparent;border:1px solid #1a2030;color:#6a6660;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.5px;cursor:pointer;transition:all .18s;margin-top:8px;}
 .restart:hover{border-color:#3a4255;color:#a8a49c;}
-.disc{
-  font-family:'DM Mono',monospace;font-size:10px;color:#4a5265;letter-spacing:.3px;
-  text-align:center;line-height:1.8;margin-top:32px;padding-top:24px;
-  border-top:1px solid #141820;
-}
-
-/* err */
+.disc{font-family:'DM Mono',monospace;font-size:10px;color:#4a5265;letter-spacing:.3px;text-align:center;line-height:1.8;margin-top:32px;padding-top:24px;border-top:1px solid #141820;}
 .err{background:#0e0808;border:1px solid #4a2020;padding:28px;text-align:center;margin:40px 0;}
 .err-msg{color:#e07070;font-size:14px;margin-bottom:16px;}
 
 @keyframes up{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
 @keyframes spin{to{transform:rotate(360deg);}}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
-@keyframes blink{0%,100%{opacity:.2;}50%{opacity:1;}}
 `;
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function HYSAQuiz() {
-  const [step, setStep]             = useState(0);
-  const [answers, setAnswers]       = useState({});
-  const [selected, setSelected]     = useState(null); // string or array for multi
-  const [result, setResult]         = useState(null);
-  const [loading, setLoading]       = useState(false);
-  const [phase, setPhase]           = useState(0);
-  const [searches, setSearches]     = useState([]);
-  const [error, setError]           = useState(null);
-  const [showAll, setShowAll]       = useState(false);
-  const [animKey, setAnimKey]       = useState(0);
-  const resultRef  = useRef(null);
-  const phaseRef   = useRef(null);
+  const [step, setStep]         = useState(0);
+  const [answers, setAnswers]   = useState({});
+  const [selected, setSelected] = useState(null);
+  const [result, setResult]     = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const [phase, setPhase]       = useState(0);
+  const [searches, setSearches] = useState([]);
+  const [error, setError]       = useState(null);
+  const [showAll, setShowAll]   = useState(false);
+  const [animKey, setAnimKey]   = useState(0);
+  const resultRef = useRef(null);
+  const phaseRef  = useRef(null);
 
-  const totalQ  = QUESTIONS.length;
+  const totalQ   = QUESTIONS.length;
   const currentQ = step >= 1 && step <= totalQ ? QUESTIONS[step - 1] : null;
   const isMulti  = currentQ?.type === "multi";
 
-  // Restore selection on step change
   useEffect(() => {
     setAnimKey(k => k + 1);
     if (currentQ) {
@@ -682,14 +443,12 @@ export default function HYSAQuiz() {
     }
   }, [step]);
 
-  // Scroll result into view
   useEffect(() => {
     if (result && resultRef.current) {
-      setTimeout(() => resultRef.current?.scrollIntoView({ behavior:"smooth", block:"start" }), 150);
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
     }
   }, [result]);
 
-  // Phase cycling
   useEffect(() => {
     if (!loading) { clearInterval(phaseRef.current); return; }
     setPhase(0);
@@ -698,17 +457,13 @@ export default function HYSAQuiz() {
     return () => clearInterval(phaseRef.current);
   }, [loading]);
 
-  // ── SELECTION HANDLERS ──────────────────────────────────────────────────────
   function handleSingle(value) { setSelected(value); }
 
   function handleMulti(value, exclusive) {
     setSelected(prev => {
       const arr = Array.isArray(prev) ? prev : [];
       if (exclusive) return [value];
-      const withoutExcl = arr.filter(v => {
-        const opt = currentQ.options.find(o => o.value === v);
-        return !opt?.exclusive;
-      });
+      const withoutExcl = arr.filter(v => !currentQ.options.find(o => o.value === v)?.exclusive);
       return withoutExcl.includes(value)
         ? withoutExcl.filter(v => v !== value)
         : [...withoutExcl, value];
@@ -719,12 +474,9 @@ export default function HYSAQuiz() {
     ? (Array.isArray(selected) && selected.length > 0)
     : selected !== null;
 
-  // ── NAVIGATION ──────────────────────────────────────────────────────────────
   function handleNext() {
     if (!canAdvance) return;
-    const qId   = currentQ.id;
-    const value = isMulti ? selected : selected;
-    const next  = { ...answers, [qId]: value };
+    const next = { ...answers, [currentQ.id]: selected };
     setAnswers(next);
     if (step < totalQ) setStep(s => s + 1);
     else               runRecommendation(next);
@@ -741,7 +493,6 @@ export default function HYSAQuiz() {
     setShowAll(false);
   }
 
-  // ── RECOMMENDATION ENGINE ───────────────────────────────────────────────────
   async function runRecommendation(ans) {
     setStep(totalQ + 1);
     setLoading(true);
@@ -749,14 +500,12 @@ export default function HYSAQuiz() {
     setSearches([]);
 
     const ranked = BANKS
-      .map(b => { const q = getQualifyingAPY(b, ans); return q ? { ...b, qualifyingApy:q.apy, tierLabel:q.tierLabel } : null; })
+      .map(b => { const q = getQualifyingAPY(b, ans); return q ? { ...b, qualifyingApy: q.apy, tierLabel: q.tierLabel } : null; })
       .filter(Boolean)
       .sort((a, b) => b.qualifyingApy - a.qualifyingApy);
 
-    const eliminated = BANKS.filter(b => !ranked.find(r => r.id === b.id)).map(b => b.name);
-    const top4 = ranked.slice(0, 4); // verify top 4 only — each search returns ~1,000 tokens of results
+    const top4 = ranked.slice(0, 4);
 
-    // Compact profile — short keys instead of full question text saves ~250 tokens
     const profileStr = [
       `balance:${ans.balance}`,
       `purpose:${ans.purpose || "—"}`,
@@ -770,16 +519,36 @@ export default function HYSAQuiz() {
       `fees:${ans.fees || "—"}`,
     ].join(" | ");
 
-    const prompt = `You are an unbiased HYSA expert. Verify current rates then recommend the best account for this user.
+    // ── STEP 1: Sonnet + web search — verify current rates only ──────────────
+    // Keep this prompt focused on fact-finding, not writing.
+    // Sonnet does the expensive search work; Haiku does the cheap write-up.
+    const searchPrompt = `You are a rate research assistant. Search official bank websites and/or NerdWallet/Bankrate to verify the current APY and key conditions for each bank below. Return your findings as plain text — do NOT write a recommendation.
 
-STEP 1 — VERIFY: Search official sites or NerdWallet/Bankrate for current APY and conditions for each bank.
+BANKS TO VERIFY:
+${top4.map((b, i) => `${i + 1}. ${b.name} — our stored APY: ${b.qualifyingApy.toFixed(2)}% (${b.tierLabel})`).join('\n')}
 
-BANKS (qualifying APYs pre-calculated):
-${top4.map((b,i) => `${i+1}. ${b.name} — ${b.qualifyingApy.toFixed(2)}% | ${b.tierLabel} | Branch:${b.branch?'Y':'N'} Debit:${b.debit?'Y':'N'} Invest:${b.investing?'Y':'N'}`).join('\n')}
+For each bank, note: current APY, whether it changed from our stored rate, source name, source date, any key conditions or changes, and any promo expiry dates. Plain text only.`;
 
-USER: ${profileStr}
+    try {
+      const verifiedFindings = await runAgenticSearch(
+        searchPrompt,
+        q => setSearches(p => [...p, q])
+      );
 
-STEP 2 — JSON ONLY (no markdown, no backticks):
+      // ── STEP 2: Haiku — write the structured recommendation ──────────────
+      // Haiku receives the verified findings + pre-calculated data + profile.
+      // No search tools needed — pure structured output generation.
+      const haikusPrompt = `You are an unbiased HYSA recommendation engine. Based on the verified rate findings and user profile below, produce a single JSON recommendation.
+
+VERIFIED RATE FINDINGS (from live web search):
+${verifiedFindings}
+
+PRE-CALCULATED QUALIFYING APYs FOR THIS USER:
+${top4.map((b, i) => `${i + 1}. ${b.name} — ${b.qualifyingApy.toFixed(2)}% | ${b.tierLabel} | Branch:${b.branch ? 'Y' : 'N'} Debit:${b.debit ? 'Y' : 'N'} Invest:${b.investing ? 'Y' : 'N'}`).join('\n')}
+
+USER PROFILE: ${profileStr}
+
+Respond with JSON ONLY (no markdown, no backticks, no preamble):
 {
   "verified_rates": [{"bank":"name","our_apy":number,"live_apy":number,"changed":boolean,"direction":"up"|"down"|"same","source":"name","source_date":"date","conditions_note":"brief note","promo_expiry":"info or null"}],
   "bank": "name",
@@ -787,57 +556,58 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
   "apy": number,
   "tier_label": "tier",
   "rate_confidence": "confirmed"|"likely current"|"unverified",
-  "verification_note": "one sentence",
-  "headline": "max 12 words",
+  "verification_note": "one sentence on what the live search found",
+  "headline": "max 12 words, specific to this user",
   "summary": "2-3 sentences tied to their profile",
   "top_perks": ["perk 1","perk 2","perk 3"],
-  "watch_out": "one caveat",
+  "watch_out": "one genuine caveat for this user",
   "runner_up": "bank name",
   "runner_up_apy": number,
   "runner_up_reason": "one sentence",
   "why_not_others": "one sentence"
 }`;
 
-    try {
-      const raw = await runAgenticSearch(prompt, q => setSearches(p => [...p, q]));
+      const haikusResp = await fetchWithTimeout("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: haikusPrompt }],
+        }),
+      });
+
+      if (!haikusResp.ok) {
+        const errBody = await haikusResp.text().catch(() => "");
+        throw new Error(`API error ${haikusResp.status}: ${errBody.slice(0, 200)}`);
+      }
+
+      const haikusData = await haikusResp.json();
+      const raw = haikusData.content?.filter(b => b.type === "text").map(b => b.text).join("\n") || "";
       const json = raw.match(/\{[\s\S]*\}/)?.[0];
-      if (!json) throw new Error("No JSON");
+      if (!json) throw new Error("No JSON in Haiku response");
       const parsed = JSON.parse(json);
 
-      // Strip <cite index="...">...</cite> tags that leak in from web search results.
-      // These inflate token counts and display as raw markup in the UI.
       const stripCites = (val) => {
-        if (typeof val === "string") {
-          return val
-            .replace(/]*>([\s\S]*?)<\/antml:cite>/gi, "$1")
-            .replace(/]*\/>/gi, "")
-            .trim();
-        }
+        if (typeof val === "string") return val.replace(/]*>([\s\S]*?)<\/antml:cite>/gi, "$1").replace(/]*\/>/gi, "").trim();
         if (Array.isArray(val)) return val.map(stripCites);
-        if (val && typeof val === "object") {
-          const out = {};
-          for (const k of Object.keys(val)) out[k] = stripCites(val[k]);
-          return out;
-        }
+        if (val && typeof val === "object") { const out = {}; for (const k of Object.keys(val)) out[k] = stripCites(val[k]); return out; }
         return val;
       };
 
-      const clean = stripCites(parsed);
-      setResult({ ...clean, allRanked: ranked });
+      setResult({ ...stripCites(parsed), allRanked: ranked });
     } catch (e) {
       console.error(e);
-      const msg = e.message?.includes("timed out")
-        ? "The rate scan timed out. Please try again — it sometimes takes a moment to connect."
-        : e.message?.includes("API error")
-        ? `Connection error (${e.message}). Please try again.`
-        : "Something went wrong during the rate scan. Please try again.";
-      setError(msg);
+      setError(
+        e.message?.includes("timed out") ? "The rate scan timed out. Please try again." :
+        e.message?.includes("API error") ? `Connection error (${e.message}). Please try again.` :
+        "Something went wrong during the rate scan. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  // ── RENDER ──────────────────────────────────────────────────────────────────
   const progress = step >= 1 && step <= totalQ ? (step / totalQ) * 100 : step > totalQ ? 100 : 0;
 
   return (
@@ -847,50 +617,45 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
         <div className="bg-lines" /><div className="bg-glow" />
         <div className="shell">
 
-          {/* ── INTRO ── */}
           {step === 0 && (
             <div className="intro">
               <div className="intro-tag">
                 <span className="intro-tag-dot" />
                 Live savings rate analysis · March 2026
               </div>
-              <h1 className="intro-h">Yield<br/><em>Concierge</em></h1>
+              <h1 className="intro-h">Yield<br /><em>Concierge</em></h1>
               <p className="intro-p">
-                11 questions. We calculate your real qualifying rate across a set of curated banks, scan live sources to verify every APY, then let you refine the recommendation through a private conversation.
+                10 questions. We calculate your real qualifying rate across a set of curated banks, scan live sources to verify every APY, then recommend the account that pays you the most.
               </p>
               <div className="trust-row">
-                {["Live rate verification","No ads or paid rankings","Curated banks analyzed","Ask follow-up questions"].map((t,i) => (
-                  <span key={i} className="trust-item"><span className="trust-pip"/>{t}</span>
+                {["Live rate verification", "No ads or paid rankings", "Curated banks analyzed", "Unbiased recommendation"].map((t, i) => (
+                  <span key={i} className="trust-item"><span className="trust-pip" />{t}</span>
                 ))}
               </div>
               <button className="cta" onClick={() => setStep(1)}>
                 Begin your analysis
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                  <path d="M3 7.5h9M8.5 4l3.5 3.5-3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M3 7.5h9M8.5 4l3.5 3.5-3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
           )}
 
-          {/* ── QUESTIONS ── */}
           {step >= 1 && step <= totalQ && currentQ && (
             <>
               <div className="prog-wrap">
-                <div className="prog-bar"><div className="prog-fill" style={{ width:`${progress}%` }} /></div>
+                <div className="prog-bar"><div className="prog-fill" style={{ width: `${progress}%` }} /></div>
                 <div className="prog-nums">
                   {QUESTIONS.map((q, i) => (
-                    <span key={q.id} className={`prog-n ${i + 1 === step ? "active" : ""}`}>{String(i+1).padStart(2,"0")}</span>
+                    <span key={q.id} className={`prog-n ${i + 1 === step ? "active" : ""}`}>{String(i + 1).padStart(2, "0")}</span>
                   ))}
                 </div>
               </div>
-
               <div className="q-wrap" key={`q-${animKey}`}>
                 <div className="q-num">Question {step} of {totalQ}</div>
                 <div className="q-title">{currentQ.question}</div>
                 <div className="q-sub">{currentQ.subtext}</div>
-
                 {isMulti && <div className="multi-hint">Select all that apply ·</div>}
-
                 <div className="opts">
                   {currentQ.options.map(opt => {
                     const arr = Array.isArray(selected) ? selected : [];
@@ -910,7 +675,6 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
                     );
                   })}
                 </div>
-
                 <div className="nav">
                   <button className="btn-back" onClick={handleBack}>← Back</button>
                   <button className="btn-next" disabled={!canAdvance} onClick={handleNext}>
@@ -921,7 +685,6 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
             </>
           )}
 
-          {/* ── LOADING ── */}
           {loading && (
             <div className="loading">
               <div className="spin-outer">
@@ -944,7 +707,6 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
             </div>
           )}
 
-          {/* ── ERROR ── */}
           {error && !loading && (
             <div className="err">
               <div className="err-msg">{error}</div>
@@ -952,20 +714,18 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
             </div>
           )}
 
-          {/* ── RESULT + CHAT ── */}
           {result && !loading && (
             <div className="result" ref={resultRef}>
 
-              {/* Verification Panel */}
               {result.verified_rates?.length > 0 && (
                 <>
                   <div className="section-hdr">Live rate verification</div>
                   <div className="verify-grid">
                     {result.verified_rates.map((vr, i) => {
                       const d = vr.direction;
-                      const apyCls   = d==="up" ? "v-gold" : d==="down" ? "v-red" : "v-green";
-                      const badgeCls = d==="up" ? "v-badge v-up" : d==="down" ? "v-badge v-dn" : d==="same" ? "v-badge v-same" : "v-badge v-conf";
-                      const badgeTxt = d==="up" ? "↑ RATE UP" : d==="down" ? "↓ RATE DOWN" : "✓ CONFIRMED";
+                      const apyCls   = d === "up" ? "v-gold" : d === "down" ? "v-red" : "v-green";
+                      const badgeCls = d === "up" ? "v-badge v-up" : d === "down" ? "v-badge v-dn" : d === "same" ? "v-badge v-same" : "v-badge v-conf";
+                      const badgeTxt = d === "up" ? "↑ RATE UP" : d === "down" ? "↓ RATE DOWN" : "✓ CONFIRMED";
                       return (
                         <div key={i} className="v-row">
                           <div className="v-meta">
@@ -985,14 +745,13 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
                 </>
               )}
 
-              {/* Recommendation Card */}
               <div className="section-hdr">Your recommendation</div>
               <div className="rec-card">
                 <div className="rec-top-row">
                   <div className="rec-bankname">{result.bank}</div>
                   {result.rate_confidence && (
-                    <div className={`rec-conf ${result.rate_confidence==="confirmed" ? "conf-ok" : result.rate_confidence==="likely current" ? "conf-approx" : "conf-warn"}`}>
-                      {result.rate_confidence==="confirmed" ? "✓ Rate confirmed" : result.rate_confidence==="likely current" ? "≈ Likely current" : "⚠ Verify rate"}
+                    <div className={`rec-conf ${result.rate_confidence === "confirmed" ? "conf-ok" : result.rate_confidence === "likely current" ? "conf-approx" : "conf-warn"}`}>
+                      {result.rate_confidence === "confirmed" ? "✓ Rate confirmed" : result.rate_confidence === "likely current" ? "≈ Likely current" : "⚠ Verify rate"}
                     </div>
                   )}
                 </div>
@@ -1002,9 +761,7 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
                   <div className="apy-pct">% APY</div>
                 </div>
                 <div className="tier-lbl">{result.tier_label}</div>
-                {result.verification_note && (
-                  <div className="v-note-inline">{result.verification_note}</div>
-                )}
+                {result.verification_note && <div className="v-note-inline">{result.verification_note}</div>}
                 <div className="rec-hl">"{result.headline}"</div>
                 <div className="rec-summary">{result.summary}</div>
                 <div className="perks">
@@ -1015,7 +772,6 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
                 <div className="watchout"><b>Watch out — </b>{result.watch_out}</div>
               </div>
 
-              {/* Runner-up */}
               {result.runner_up && (
                 <div className="sub-card">
                   <div className="sub-top">
@@ -1029,15 +785,13 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
                 </div>
               )}
 
-              {/* Why not others */}
               {result.why_not_others && (
-                <div className="sub-card" style={{ borderStyle:"dashed" }}>
-                  <div className="sub-lbl" style={{ marginBottom:6 }}>On the others</div>
+                <div className="sub-card" style={{ borderStyle: "dashed" }}>
+                  <div className="sub-lbl" style={{ marginBottom: 6 }}>On the others</div>
                   <div className="sub-reason">{result.why_not_others}</div>
                 </div>
               )}
 
-              {/* All qualifying rates */}
               <button className="rates-toggle" onClick={() => setShowAll(v => !v)}>
                 <span>All {result.allRanked?.length} qualifying rates for your profile</span>
                 <span>{showAll ? "▲" : "▼"}</span>
@@ -1051,24 +805,22 @@ STEP 2 — JSON ONLY (no markdown, no backticks):
                     {result.allRanked.map((b, i) => (
                       <tr key={b.id}>
                         <td>{b.name}</td>
-                        <td className="td-apy" style={{ color: i===0 ? "#c8a96e" : undefined }}>
+                        <td className="td-apy" style={{ color: i === 0 ? "#c8a96e" : undefined }}>
                           {b.qualifyingApy.toFixed(2)}%
                         </td>
-                        <td style={{ fontSize:11, color:"#5a6070" }}>{b.tierLabel}</td>
+                        <td style={{ fontSize: 11, color: "#5a6070" }}>{b.tierLabel}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
 
-              {/* ── CONCIERGE CHAT — temporarily disabled ── */}
-
-              <button className="restart" onClick={restart} style={{ marginTop:32 }}>
+              <button className="restart" onClick={restart} style={{ marginTop: 32 }}>
                 ↺ Start over with different answers
               </button>
 
               <div className="disc">
-                Rate verification performed {new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}.
+                Rate verification performed {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
                 APYs are variable — verify directly with each institution before opening an account.
                 This tool is independent. No banks pay for placement or recommendations.
               </div>
