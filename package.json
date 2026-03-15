@@ -13,20 +13,3 @@
     "react-dom": "^18"
   }
 }
-```
-
-5. Click **Commit changes**
-
----
-
-**Step 3 — Check your file structure in GitHub**
-
-Your repo root should look like this — if files are in the wrong place, that's the other common cause:
-```
-yieldconcierge/          ← your repo root
-├── pages/
-├── components/
-├── styles/
-├── public/
-├── package.json         ← must be at root, not inside a subfolder
-└── next.config.js       ← must be at root
