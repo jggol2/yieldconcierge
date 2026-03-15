@@ -4,14 +4,23 @@ export default async function handler(req, res) {
   }
  
   try {
+    // Only send the web-search beta header when the request actually includes tools.
+    // Sending it on plain chat requests causes a 400 from the Anthropic API.
+    const hasTools = req.body.tools && req.body.tools.length > 0;
+ 
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    };
+ 
+    if (hasTools) {
+      headers['anthropic-beta'] = 'web-search-2025-03-05';
+    }
+ 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'web-search-2025-03-05',
-      },
+      headers,
       body: JSON.stringify(req.body),
     });
  
