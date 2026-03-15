@@ -317,48 +317,6 @@ async function runAgenticSearch(prompt, onSearch) {
   throw new Error("Search loop exceeded maximum iterations.");
 }
 
-// ─── CHAT HELPERS ─────────────────────────────────────────────────────────────
-function buildSystemPrompt(answers, result) {
-  const balLabel = QUESTIONS[0].options.find(o => o.value === answers.balance)?.label || answers.balance;
-  const ddLabel  = QUESTIONS[2].options.find(o => o.value === answers.direct_deposit)?.label || answers.direct_deposit;
-  const existing = Array.isArray(answers.existing_customer)
-    ? answers.existing_customer.filter(v => v !== "none").join(", ") || "none"
-    : "none";
-
-  // Top 5 qualifying banks only, condensed
-  const topBanks = (result.allRanked || []).slice(0, 5)
-    .map(b => `${b.name} ${b.qualifyingApy.toFixed(2)}%`)
-    .join(", ");
-
-  return `HYSA concierge. User got their recommendation. Answer follow-ups in 2-4 sentences, specific to their profile.
-
-REC: ${result.bank} ${result.apy}% APY | Runner-up: ${result.runner_up} ${result.runner_up_apy}%
-PROFILE: ${balLabel} | DD: ${ddLabel} | Purpose: ${answers.purpose || "—"} | Access: ${answers.access_speed || "—"} | Branch: ${answers.branch || "—"} | Debit: ${answers.debit || "—"} | Investing: ${answers.investing || "—"} | Conditions: ${answers.conditions_comfort || "—"} | Existing at: ${existing}
-TOP BANKS: ${topBanks}
-
-Be direct and specific. No generic advice.`;
-}
-
-function generateChips(result, answers) {
-  const chips = [];
-  if (result.runner_up) chips.push(`Compare ${result.runner_up} vs. ${result.bank} in detail`);
-  if (answers.direct_deposit !== "no") chips.push("What if I lose or cancel direct deposit?");
-  // Show promo chip if user is a new customer at the recommended bank (promo may apply)
-  const existingAt = Array.isArray(answers.existing_customer) ? answers.existing_customer : [];
-  const isNewAtRec = result.bank && !existingAt.some(id => result.bank.toLowerCase().includes(id));
-  if (isNewAtRec) chips.push("What happens to my rate when the promo ends?");
-  if (answers.purpose === "emergency") chips.push("How fast can I realistically get my money?");
-  if (answers.purpose === "goal") chips.push("Will this rate stay competitive for the next year?");
-  const balEst = QUESTIONS[0].options.find(o => o.value === answers.balance)?.est ?? 0;
-  if (balEst >= 5000) chips.push("Am I maximizing returns for my balance size?");
-  chips.push("Walk me through exactly how to open this account");
-  chips.push("Any hidden fees or catches I should know about?");
-  chips.push("What's the FDIC coverage situation?");
-  if (answers.investing === "no") chips.push("Should I also open a brokerage account?");
-  if (answers.conditions_comfort === "no") chips.push("What's the best truly no-strings rate right now?");
-  return chips.slice(0, 6);
-}
-
 // ─── LOADING PHASES ───────────────────────────────────────────────────────────
 const PHASES = [
   "Calculating your qualifying rates…",
@@ -706,14 +664,8 @@ export default function HYSAQuiz() {
   const [error, setError]           = useState(null);
   const [showAll, setShowAll]       = useState(false);
   const [animKey, setAnimKey]       = useState(0);
-  const [chatMsgs, setChatMsgs]     = useState([]);
-  const [chatInput, setChatInput]   = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [usedChips, setUsedChips]   = useState(new Set());
   const resultRef  = useRef(null);
-  const chatEndRef = useRef(null);
   const phaseRef   = useRef(null);
-  const inputRef   = useRef(null);
 
   const totalQ  = QUESTIONS.length;
   const currentQ = step >= 1 && step <= totalQ ? QUESTIONS[step - 1] : null;
@@ -736,11 +688,6 @@ export default function HYSAQuiz() {
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior:"smooth", block:"start" }), 150);
     }
   }, [result]);
-
-  // Scroll chat to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior:"smooth" });
-  }, [chatMsgs, chatLoading]);
 
   // Phase cycling
   useEffect(() => {
@@ -791,7 +738,7 @@ export default function HYSAQuiz() {
   function restart() {
     setStep(0); setAnswers({}); setSelected(null);
     setResult(null); setError(null); setSearches([]);
-    setShowAll(false); setChatMsgs([]); setChatInput(""); setUsedChips(new Set());
+    setShowAll(false);
   }
 
   // ── RECOMMENDATION ENGINE ───────────────────────────────────────────────────
@@ -903,73 +850,8 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
     }
   }
 
-  // ── CHAT ────────────────────────────────────────────────────────────────────
-  async function sendChat(text) {
-    const msg = text.trim();
-    if (!msg || chatLoading || !result) return;
-
-    const newHistory = [...chatMsgs, { role:"user", content:msg }];
-    setChatMsgs(newHistory);
-    setChatInput("");
-    setChatLoading(true);
-
-    // Only send the last 6 messages (3 exchanges) to stay well under rate limits
-    const trimmedHistory = newHistory.slice(-6);
-
-    try {
-      const resp = await fetchWithTimeout(
-        "/api/messages",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
-            system: buildSystemPrompt(answers, result),
-            messages: trimmedHistory.map(m => ({ role: m.role, content: m.content })),
-          }),
-        },
-        30000
-      );
-
-      // Read body regardless of status so we can surface real error messages
-      const data = await resp.json();
-
-      if (!resp.ok) {
-        const apiMsg = data?.error?.message || JSON.stringify(data);
-        throw new Error(`API ${resp.status}: ${apiMsg}`);
-      }
-
-      const reply = data.content?.find(b => b.type === "text")?.text
-        || "I couldn't generate a response. Please try again.";
-      // Strip any citation markup that leaks in from the model
-      const cleanReply = reply
-        .replace(/]*>([\s\S]*?)<\/antml:cite>/gi, "$1")
-        .replace(/]*\/>/gi, "")
-        .trim();
-      setChatMsgs(p => [...p, { role: "assistant", content: cleanReply }]);
-    } catch (err) {
-      const display = err.message?.includes("timed out")
-        ? "Request timed out — please try again."
-        : `Error: ${err.message}`;
-      setChatMsgs(p => [...p, { role: "assistant", content: display }]);
-    } finally {
-      setChatLoading(false);
-    }
-  }
-
-  function handleChip(chip) {
-    setUsedChips(p => new Set([...p, chip]));
-    sendChat(chip);
-  }
-
-  function handleInputKey(e) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(chatInput); }
-  }
-
   // ── RENDER ──────────────────────────────────────────────────────────────────
   const progress = step >= 1 && step <= totalQ ? (step / totalQ) * 100 : step > totalQ ? 100 : 0;
-  const chips = result ? generateChips(result, answers).filter(c => !usedChips.has(c)) : [];
 
   return (
     <>
@@ -1192,66 +1074,7 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
                 </table>
               )}
 
-              {/* ── CONCIERGE CHAT ── */}
-              <div className="chat-section">
-                <div className="section-hdr">Refine your recommendation</div>
-                <div className="chat-intro">
-                  Have questions? Want to explore a different scenario? Ask anything — I have your full profile and live rate data.
-                </div>
-
-                {/* Quick chips */}
-                {chips.length > 0 && (
-                  <div className="chips">
-                    {chips.map((chip, i) => (
-                      <button key={i} className="chip" onClick={() => handleChip(chip)}>
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Chat thread */}
-                {chatMsgs.length > 0 && (
-                  <div className="chat-thread">
-                    {chatMsgs.map((m, i) => (
-                      <div key={i} className={m.role === "user" ? "msg-user" : "msg-assistant"}>
-                        {m.content.split('\n').filter(Boolean).map((line, j) => (
-                          <p key={j}>{line}</p>
-                        ))}
-                      </div>
-                    ))}
-                    {chatLoading && (
-                      <div className="msg-thinking">
-                        <span className="dots">
-                          <span>●</span><span>●</span><span>●</span>
-                        </span>
-                      </div>
-                    )}
-                    <div ref={chatEndRef} />
-                  </div>
-                )}
-
-                {/* Input */}
-                <div className="chat-input-row">
-                  <textarea
-                    ref={inputRef}
-                    className="chat-input"
-                    value={chatInput}
-                    onChange={e => setChatInput(e.target.value)}
-                    onKeyDown={handleInputKey}
-                    placeholder="Ask anything — 'what if I can't do direct deposit?', 'compare the top two', …"
-                    rows={2}
-                    disabled={chatLoading}
-                  />
-                  <button
-                    className="chat-send"
-                    onClick={() => sendChat(chatInput)}
-                    disabled={!chatInput.trim() || chatLoading}
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
+              {/* ── CONCIERGE CHAT — temporarily disabled ── */}
 
               <button className="restart" onClick={restart} style={{ marginTop:32 }}>
                 ↺ Start over with different answers
