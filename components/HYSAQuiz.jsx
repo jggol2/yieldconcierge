@@ -319,38 +319,24 @@ async function runAgenticSearch(prompt, onSearch) {
 
 // ─── CHAT HELPERS ─────────────────────────────────────────────────────────────
 function buildSystemPrompt(answers, result) {
-  // Keep the system prompt lean — new Anthropic accounts have a 30k token/min limit.
-  // Only include what Claude genuinely needs to answer follow-up questions.
-
-  const balLabel  = QUESTIONS[0].options.find(o => o.value === answers.balance)?.label || answers.balance;
-  const ddLabel   = QUESTIONS[2].options.find(o => o.value === answers.direct_deposit)?.label || answers.direct_deposit;
-  const existingAt = Array.isArray(answers.existing_customer)
+  const balLabel = QUESTIONS[0].options.find(o => o.value === answers.balance)?.label || answers.balance;
+  const ddLabel  = QUESTIONS[2].options.find(o => o.value === answers.direct_deposit)?.label || answers.direct_deposit;
+  const existing = Array.isArray(answers.existing_customer)
     ? answers.existing_customer.filter(v => v !== "none").join(", ") || "none"
     : "none";
 
-  // Top 6 qualifying banks only
-  const topBanks = (result.allRanked || []).slice(0, 6)
-    .map(b => `${b.name}: ${b.qualifyingApy.toFixed(2)}% (${b.tierLabel})`)
-    .join("; ");
+  // Top 5 qualifying banks only, condensed
+  const topBanks = (result.allRanked || []).slice(0, 5)
+    .map(b => `${b.name} ${b.qualifyingApy.toFixed(2)}%`)
+    .join(", ");
 
-  // Verified rates condensed to one line each
-  const verified = (result.verified_rates || []).slice(0, 6)
-    .map(v => `${v.bank} ${v.live_apy}% via ${v.source}`)
-    .join("; ");
+  return `HYSA concierge. User got their recommendation. Answer follow-ups in 2-4 sentences, specific to their profile.
 
-  return `You are a concise HYSA concierge advisor. The user just received their savings account recommendation. Answer follow-up questions directly and specifically — 2–4 sentences max unless a detailed comparison is requested.
+REC: ${result.bank} ${result.apy}% APY | Runner-up: ${result.runner_up} ${result.runner_up_apy}%
+PROFILE: ${balLabel} | DD: ${ddLabel} | Purpose: ${answers.purpose || "—"} | Access: ${answers.access_speed || "—"} | Branch: ${answers.branch || "—"} | Debit: ${answers.debit || "—"} | Investing: ${answers.investing || "—"} | Conditions: ${answers.conditions_comfort || "—"} | Existing at: ${existing}
+TOP BANKS: ${topBanks}
 
-RECOMMENDATION: ${result.bank} — ${result.account} — ${result.apy}% APY (${result.tier_label})
-Runner-up: ${result.runner_up} at ${result.runner_up_apy}%
-Watch out: ${result.watch_out}
-
-USER PROFILE: Balance ${balLabel} | DD: ${ddLabel} | Purpose: ${answers.purpose || "—"} | Access: ${answers.access_speed || "—"} | Branch: ${answers.branch || "—"} | Debit: ${answers.debit || "—"} | Investing: ${answers.investing || "—"} | Fees: ${answers.fees || "—"} | Conditions: ${answers.conditions_comfort || "—"} | Existing customer at: ${existingAt}
-
-TOP QUALIFYING BANKS: ${topBanks}
-
-VERIFIED RATES: ${verified}
-
-Be specific to this user's profile. Never give generic advice.`;
+Be direct and specific. No generic advice.`;
 }
 
 function generateChips(result, answers) {
@@ -883,7 +869,27 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
       const json = raw.match(/\{[\s\S]*\}/)?.[0];
       if (!json) throw new Error("No JSON");
       const parsed = JSON.parse(json);
-      setResult({ ...parsed, allRanked: ranked });
+
+      // Strip <cite index="...">...</cite> tags that leak in from web search results.
+      // These inflate token counts and display as raw markup in the UI.
+      const stripCites = (val) => {
+        if (typeof val === "string") {
+          return val
+            .replace(/]*>([\s\S]*?)<\/antml:cite>/gi, "$1")
+            .replace(/]*\/>/gi, "")
+            .trim();
+        }
+        if (Array.isArray(val)) return val.map(stripCites);
+        if (val && typeof val === "object") {
+          const out = {};
+          for (const k of Object.keys(val)) out[k] = stripCites(val[k]);
+          return out;
+        }
+        return val;
+      };
+
+      const clean = stripCites(parsed);
+      setResult({ ...clean, allRanked: ranked });
     } catch (e) {
       console.error(e);
       const msg = e.message?.includes("timed out")
@@ -907,6 +913,9 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
     setChatInput("");
     setChatLoading(true);
 
+    // Only send the last 6 messages (3 exchanges) to stay well under rate limits
+    const trimmedHistory = newHistory.slice(-6);
+
     try {
       const resp = await fetchWithTimeout(
         "/api/messages",
@@ -917,7 +926,7 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
             model: "claude-sonnet-4-20250514",
             max_tokens: 1000,
             system: buildSystemPrompt(answers, result),
-            messages: newHistory.map(m => ({ role: m.role, content: m.content })),
+            messages: trimmedHistory.map(m => ({ role: m.role, content: m.content })),
           }),
         },
         30000
@@ -933,7 +942,12 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
 
       const reply = data.content?.find(b => b.type === "text")?.text
         || "I couldn't generate a response. Please try again.";
-      setChatMsgs(p => [...p, { role: "assistant", content: reply }]);
+      // Strip any citation markup that leaks in from the model
+      const cleanReply = reply
+        .replace(/]*>([\s\S]*?)<\/antml:cite>/gi, "$1")
+        .replace(/]*\/>/gi, "")
+        .trim();
+      setChatMsgs(p => [...p, { role: "assistant", content: cleanReply }]);
     } catch (err) {
       const display = err.message?.includes("timed out")
         ? "Request timed out — please try again."
