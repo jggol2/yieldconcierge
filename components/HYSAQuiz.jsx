@@ -926,12 +926,23 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
         },
         30000
       );
-      if (!resp.ok) throw new Error(`API error ${resp.status}`);
+
+      // Read body regardless of status so we can surface real error messages
       const data = await resp.json();
-      const reply = data.content?.find(b => b.type === "text")?.text || "I couldn't generate a response. Please try again.";
+
+      if (!resp.ok) {
+        const apiMsg = data?.error?.message || JSON.stringify(data);
+        throw new Error(`API ${resp.status}: ${apiMsg}`);
+      }
+
+      const reply = data.content?.find(b => b.type === "text")?.text
+        || "I couldn't generate a response. Please try again.";
       setChatMsgs(p => [...p, { role: "assistant", content: reply }]);
     } catch (err) {
-      setChatMsgs(p => [...p, { role: "assistant", content: err.message?.includes("timed out") ? "Request timed out — please try again." : "Something went wrong. Please try again." }]);
+      const display = err.message?.includes("timed out")
+        ? "Request timed out — please try again."
+        : `Error: ${err.message}`;
+      setChatMsgs(p => [...p, { role: "assistant", content: display }]);
     } finally {
       setChatLoading(false);
     }
