@@ -60,7 +60,7 @@ const TIERS = [
   { bank:"bask",        label:"Standard Rate (no conditions)",                     apy:3.75, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
 ];
 
-// ─── QUESTIONS (11 total) ─────────────────────────────────────────────────────
+// ─── QUESTIONS (10 total) ─────────────────────────────────────────────────────
 const QUESTIONS = [
   {
     id: "balance",
@@ -977,7 +977,7 @@ STEP 2 — RESPOND WITH JSON ONLY (no markdown, no backticks, no preamble):
               </div>
               <h1 className="intro-h">Yield<br/><em>Concierge</em></h1>
               <p className="intro-p">
-                11 questions. We calculate your real qualifying rate across a set of curated banks, scan live sources to verify every APY, then let you refine the recommendation through a private conversation.
+                10 questions. We calculate your real qualifying rate across a set of curated banks, scan live sources to verify every APY, then let you refine the recommendation through a private conversation.
               </p>
               <div className="trust-row">
                 {["Live rate verification","No ads or paid rankings","Curated banks analyzed","Ask follow-up questions"].map((t,i) => (
