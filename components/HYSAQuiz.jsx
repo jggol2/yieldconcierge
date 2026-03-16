@@ -1,27 +1,31 @@
 import { useState, useEffect, useRef } from "react";
 
-// ─── BANK DATA (March 7, 2026) ────────────────────────────────────────────────
+// ─── BANK DATA (March 15, 2026) ───────────────────────────────────────────────
 const BANKS = [
-  { id:"sofi",        name:"SoFi",                   account:"Checking & Savings",          baseApy:1.00, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Best all-in-one app. DD unlocks 3.30%. SoFi Plus promo 4.00% for new customers (6 months, limited time). Strong debit + investing. Instant transfers between SoFi accounts." },
-  { id:"wealthfront", name:"Wealthfront",             account:"Cash Account",                baseApy:3.30, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:1,   slowTransfer:false, notes:"Flat 3.30% standard, no conditions. Welcome Offer 3.95% for new accounts: new money only, first 3 months, up to $150k (requires opening new Wealthfront brokerage account). $8M FDIC via partners." },
-  { id:"marcus",      name:"Marcus by Goldman Sachs", account:"Online Savings Account",      baseApy:3.65, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"No conditions, no fees, no debit. Flat 3.65% from Goldman Sachs. Trusted brand. Transfers typically 1 business day to linked accounts. Best for pure savers who want simplicity." },
-  { id:"betterment",  name:"Betterment",              account:"Cash Reserve",                baseApy:3.25, branch:false, debit:false, investing:true,  fee:0, feeWaivable:false, minOpen:10,  slowTransfer:false, notes:"Flat 3.25% standard. New customer boost: 3.90% for first 3 months (0.65% boost). Best-in-class robo-advisor. No debit card on cash reserve. $10 min to open." },
-  { id:"axos",        name:"Axos Bank",               account:"ONE Savings (bundle)",        baseApy:1.00, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Highest conditional rate (4.21%) for users meeting DD + balance mins. Requires Axos ONE Checking bundle. 95,000+ fee-free ATMs. No investing. Base rate is only 1% without conditions." },
-  { id:"openbank",    name:"Openbank",                account:"High Yield Savings",          baseApy:4.09, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:500, slowTransfer:false, notes:"Digital subsidiary of Santander. No conditions for 4.09% — highest unconditional flat rate. $500 min to open. Online/app only. No debit. Transfers typically 1-2 days." },
-  { id:"bread",       name:"Bread Savings",           account:"High Yield Savings",          baseApy:4.00, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:100, slowTransfer:true,  notes:"Flat 4.00% APY, $100 min to open, no monthly fees. No debit or checking. Online only. Paper statements $5. ACH transfers can take 1-3 business days. Not ideal if you need fast access." },
-  { id:"everbank",    name:"EverBank",                account:"Performance Savings",         baseApy:3.90, branch:true,  debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"No minimum, no fee, flat 3.90%. Branches in FL, CA, and NY only. EverBank checking + debit available. Best for Southeast/coastal users wanting branch + competitive rate." },
-  { id:"pnc",         name:"PNC Bank",                account:"Premiere Money Market",       baseApy:0.02, branch:true,  debit:true,  investing:false, fee:0, feeWaivable:true,  minOpen:0,   slowTransfer:false, notes:"Promotional 3.25% ONLY for new clients with address outside PNC branch footprint, $25k+ balance, existing PNC checking. Not available to existing PNC savings holders. Everyone else: ~0.02%." },
-  { id:"capital_one", name:"Capital One",             account:"360 Performance Savings",     baseApy:3.30, branch:true,  debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.30%, no conditions, no fees. 200+ branches + Capital One Cafes (mostly East Coast). No debit on savings — transfers only. Fast ACH. Excellent brand trust and mobile app." },
-  { id:"ally",        name:"Ally Bank",               account:"Online Savings Account",      baseApy:3.20, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.20%. Savings buckets, round-ups, best-in-class UX and app. No debit on savings. Fast transfers (often 1 business day). Reliable but rate trails top fintechs." },
-  { id:"cit",         name:"CIT Bank",                account:"Platinum Savings",            baseApy:0.25, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:100, slowTransfer:false, notes:"3.75% for $5,000+ balances. Only 0.25% below that threshold. No debit. $100 min to open. Good for disciplined savers keeping higher balances." },
-  { id:"hsbc",        name:"HSBC",                    account:"Premier Relationship Savings", baseApy:0.05, branch:true, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Standard rate 0.05% (near zero). Relationship rate 3.20% requires HSBC Premier checking + monthly activity: $500 debit spend OR $500 credit payments OR $5,000 DD. Complex conditions. Select major city branches." },
-  { id:"truist",      name:"Truist",                  account:"One Savings",                 baseApy:0.01, branch:true,  debit:true,  investing:false, fee:5, feeWaivable:true,  minOpen:0,   slowTransfer:false, notes:"Not a HYSA — 0.01% APY. Only for users needing full-service traditional banking in SE/Mid-Atlantic. Large branch network." },
-  { id:"amex",        name:"American Express",        account:"High Yield Savings",          baseApy:3.30, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.30%, no minimums, no debit. Transfers 1-3 days. Great trust brand; seamless for existing Amex cardholders. No checking account needed." },
-  { id:"chase",       name:"Chase",                   account:"Savings Account",             baseApy:0.01, branch:true,  debit:true,  investing:true,  fee:5, feeWaivable:true,  minOpen:0,   slowTransfer:false, notes:"Not a HYSA — 0.01% APY. Largest US bank. Only relevant for users deeply in Chase ecosystem. Strong investing via J.P. Morgan. Fast transfers within Chase." },
-  { id:"barclays",    name:"Barclays",                account:"Tiered Savings Account",      baseApy:3.70, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:true,  notes:"3.70% flat, 3.85% at $250k+. $200 sign-up bonus for $30k+ held 120 days. No debit. ACH transfers typically 2-3 business days — not suitable for urgent access needs." },
-  { id:"etrade",      name:"E*TRADE",                 account:"Premium Savings",             baseApy:3.35, branch:false, debit:false, investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Backed by Morgan Stanley. Standard 3.35%. Promo 3.75% for 6 months on new money (code SAVE26) + cash bonus up to $2,000. Seamless brokerage integration." },
-  { id:"popular",     name:"Popular Direct",          account:"Exclusive Savings",           baseApy:3.90, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:100, slowTransfer:true,  notes:"Online division of Popular Bank. Flat 3.90% APY. $100 min. $25 early closure fee within 180 days. ACH can take 2-3 days. Not ideal for urgent withdrawal needs." },
-  { id:"bask",        name:"Bask Bank",               account:"Interest Savings",            baseApy:3.75, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Division of Texas Capital Bank. Flat 3.75%. Promo 4.00% for new accounts with $10k+ avg monthly balance through May 31, 2026 (open by Mar 31, 2026). Also offers American Airlines miles variant." },
+  { id:"sofi",            name:"SoFi",                   account:"Checking & Savings",          baseApy:1.00, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Best all-in-one app. DD unlocks 3.30%. SoFi Plus promo 4.00% for new customers — EXPIRES MARCH 30 2026. Strong debit + investing. Instant transfers between SoFi accounts." },
+  { id:"wealthfront",     name:"Wealthfront",             account:"Cash Account",                baseApy:3.30, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:1,   slowTransfer:false, notes:"Flat 3.30% standard (raised from 3.10% on 1/30/2026), no conditions. Welcome Offer 3.95% for new accounts: new money only, first 3 months, up to $150k (requires opening new Wealthfront brokerage account). $8M FDIC via partners." },
+  { id:"marcus",          name:"Marcus by Goldman Sachs", account:"Online Savings Account",      baseApy:3.65, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"No conditions, no fees, no debit. Flat 3.65% from Goldman Sachs. Trusted brand. Transfers typically 1 business day to linked accounts. Best for pure savers who want simplicity." },
+  { id:"betterment",      name:"Betterment",              account:"Cash Reserve",                baseApy:3.25, branch:false, debit:false, investing:true,  fee:0, feeWaivable:false, minOpen:10,  slowTransfer:false, notes:"Flat 3.25% standard. New customer boost: 3.90% for first 3 months (0.65% boost). Best-in-class robo-advisor. No debit card on cash reserve. $10 min to open." },
+  { id:"axos",            name:"Axos Bank",               account:"ONE Savings (bundle)",        baseApy:1.00, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Highest conditional rate (4.21%) for users meeting DD + balance mins. Requires Axos ONE Checking bundle. 95,000+ fee-free ATMs. No investing. Base rate is only 1% without conditions." },
+  { id:"openbank",        name:"Openbank",                account:"High Yield Savings",          baseApy:4.09, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:500, slowTransfer:false, notes:"Digital subsidiary of Santander. No conditions for 4.09% — highest unconditional flat rate. $500 min to open. Online/app only. No debit. Transfers typically 1-2 days." },
+  { id:"bread",           name:"Bread Savings",           account:"High Yield Savings",          baseApy:4.00, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:100, slowTransfer:true,  notes:"Flat 4.00% APY, $100 min to open, no monthly fees. No debit or checking. Online only. Paper statements $5. ACH transfers can take 1-3 business days. Not ideal if you need fast access." },
+  { id:"everbank",        name:"EverBank",                account:"Performance Savings",         baseApy:3.90, branch:true,  debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"No minimum, no fee, flat 3.90%. Branches in FL, CA, and NY only. EverBank checking + debit available. Best for Southeast/coastal users wanting branch + competitive rate." },
+  { id:"pnc",             name:"PNC Bank",                account:"Premiere Money Market",       baseApy:0.02, branch:true,  debit:true,  investing:false, fee:0, feeWaivable:true,  minOpen:0,   slowTransfer:false, notes:"Promotional 3.25% ONLY for new clients with address outside PNC branch footprint, $25k+ balance, existing PNC checking. Not available to existing PNC savings holders. Everyone else: ~0.02%." },
+  { id:"capital_one",     name:"Capital One",             account:"360 Performance Savings",     baseApy:3.20, branch:true,  debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.20%, no conditions, no fees. 200+ branches + Capital One Cafes (mostly East Coast). No debit on savings — transfers only. Fast ACH. Excellent brand trust and mobile app." },
+  { id:"ally",            name:"Ally Bank",               account:"Online Savings Account",      baseApy:3.20, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.20%. Savings buckets, round-ups, best-in-class UX and app. No debit on savings. Fast transfers (often 1 business day). Reliable but rate trails top fintechs." },
+  { id:"cit",             name:"CIT Bank",                account:"Platinum Savings",            baseApy:0.25, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:100, slowTransfer:false, notes:"3.75% for $5,000+ balances. Only 0.25% below that threshold. No debit. $100 min to open. Good for disciplined savers keeping higher balances." },
+  { id:"hsbc",            name:"HSBC",                    account:"Premier Relationship Savings", baseApy:0.05, branch:true, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Standard rate 0.05% (near zero). Relationship rate 3.30% (updated Feb 2026) requires HSBC Premier checking + monthly activity: $500 debit spend OR $500 credit payments OR $5,000 DD. Complex conditions. Select major city branches." },
+  { id:"truist",          name:"Truist",                  account:"One Savings",                 baseApy:0.01, branch:true,  debit:true,  investing:false, fee:5, feeWaivable:true,  minOpen:0,   slowTransfer:false, notes:"Not a HYSA — 0.01% APY. Only for users needing full-service traditional banking in SE/Mid-Atlantic. Large branch network." },
+  { id:"amex",            name:"American Express",        account:"High Yield Savings",          baseApy:3.30, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.30%, no minimums, no debit. Transfers 1-3 days. Great trust brand; seamless for existing Amex cardholders. No checking account needed." },
+  { id:"chase",           name:"Chase",                   account:"Savings Account",             baseApy:0.01, branch:true,  debit:true,  investing:true,  fee:5, feeWaivable:true,  minOpen:0,   slowTransfer:false, notes:"Not a HYSA — 0.01% APY. Largest US bank. Only relevant for users deeply in Chase ecosystem. Strong investing via J.P. Morgan. Fast transfers within Chase." },
+  { id:"barclays",        name:"Barclays",                account:"Tiered Savings Account",      baseApy:3.70, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:true,  notes:"3.70% flat, 3.85% at $250k+. $200 sign-up bonus for $30k+ held 120 days. No debit. ACH transfers typically 2-3 business days — not suitable for urgent access needs." },
+  { id:"etrade",          name:"E*TRADE",                 account:"Premium Savings",             baseApy:3.35, branch:false, debit:false, investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Backed by Morgan Stanley. Standard 3.35%. Promo 3.75% for 6 months on new money (code SAVE26) + cash bonus up to $2,000. Seamless brokerage integration." },
+  { id:"popular",         name:"Popular Direct",          account:"Exclusive Savings",           baseApy:3.90, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:100, slowTransfer:true,  notes:"Online division of Popular Bank. Flat 3.90% APY. $100 min. $25 early closure fee within 180 days. ACH can take 2-3 days. Not ideal for urgent withdrawal needs." },
+  { id:"bask",            name:"Bask Bank",               account:"Interest Savings",            baseApy:3.75, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Division of Texas Capital Bank. Flat 3.75%. Promo 4.00% for new accounts with $10k+ avg monthly balance through May 31, 2026 (open by Mar 31, 2026). Also offers American Airlines miles variant." },
+  { id:"western_alliance", name:"Western Alliance Bank", account:"High-Yield Savings Premier",  baseApy:3.80, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:500, slowTransfer:true,  notes:"Major FDIC bank ($90B+ assets). Flat 3.80% no conditions. $500 min to open. ACH only — one linked external account. Deposits take 5 business days. No debit. Well-reviewed. Joint accounts available." },
+  { id:"forbright",       name:"Forbright Bank",          account:"Growth Savings",             baseApy:3.85, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.85%, no minimum, no fees. Eco-certified FDIC bank. No debit/ATM. Unlimited transfers. M-F customer service only. Highly rated by NerdWallet and Bankrate. Online only." },
+  { id:"synchrony",       name:"Synchrony Bank",          account:"High Yield Savings",         baseApy:3.50, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.50%, no conditions, no minimum. Unique: optional ATM debit card with $5/mo fee reimbursement — one of few HYSAs offering this with no requirements. 90-year history. 4.8-star iOS app. FDIC." },
+  { id:"lendingclub",     name:"LendingClub Bank",        account:"LevelUp Savings",            baseApy:3.00, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"LevelUp rate: 4.00% APY with $250+ monthly deposit; 3.00% without. Free ATM card. No fees, no minimum. FDIC. Well-reviewed. Simpler condition than DD accounts — just add $250/mo." },
 ];
 
 // ─── TIERS ────────────────────────────────────────────────────────────────────
@@ -46,8 +50,8 @@ const TIERS = [
   { bank:"ally",        label:"Standard Rate (no conditions)",                     apy:3.20, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
   { bank:"cit",         label:"Platinum Rate ($5,000+ balance)",                   apy:3.75, minBal:5000,   reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
   { bank:"cit",         label:"Base Rate (under $5,000)",                          apy:0.25, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
-  { bank:"hsbc",        label:"Relationship APY (Premier checking + activity)",    apy:3.20, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
-  { bank:"hsbc",        label:"Standard APY (no conditions met)",                  apy:0.05, minBal:1,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
+  { bank:"hsbc",            label:"Relationship APY (Premier checking + activity)",    apy:3.30, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
+  { bank:"hsbc",            label:"Standard APY (no conditions met)",                  apy:0.05, minBal:1,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
   { bank:"truist",      label:"Standard Rate (all balances)",                      apy:0.01, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
   { bank:"amex",        label:"Standard Rate (no conditions)",                     apy:3.30, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
   { bank:"chase",       label:"Standard Rate (all balances)",                      apy:0.01, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
@@ -56,8 +60,14 @@ const TIERS = [
   { bank:"etrade",      label:"Promo 3.75% — New Money, 6 Months (code SAVE26)", apy:3.75, minBal:0,      reqDD:false, minDD:0,    newMoney:true,  newCustomerOnly:false, sort:1 },
   { bank:"etrade",      label:"Standard Rate (no conditions)",                     apy:3.35, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
   { bank:"popular",     label:"Standard Rate ($100 min opening deposit)",          apy:3.90, minBal:100,    reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
-  { bank:"bask",        label:"Promo 4.00% (new accounts, $10k+ bal, ≤May 2026)", apy:4.00, minBal:10000,  reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:true,  sort:1 },
-  { bank:"bask",        label:"Standard Rate (no conditions)",                     apy:3.75, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
+  { bank:"bask",            label:"Promo 4.00% (new accounts, $10k+ bal, ≤May 2026)", apy:4.00, minBal:10000,  reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:true,  sort:1 },
+  { bank:"bask",            label:"Standard Rate (no conditions)",                     apy:3.75, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
+  // New banks added March 15, 2026
+  { bank:"western_alliance", label:"Standard Rate ($500 min to open, one linked account)", apy:3.80, minBal:0, reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
+  { bank:"forbright",       label:"Standard Rate (no conditions, no minimum)",         apy:3.85, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
+  { bank:"synchrony",       label:"Standard Rate (no conditions, optional debit)",     apy:3.50, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
+  { bank:"lendingclub",     label:"LevelUp Rate ($250+ monthly deposit)",              apy:4.00, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1, minMonthlyDeposit:250 },
+  { bank:"lendingclub",     label:"Standard Rate (no monthly deposit)",                apy:3.00, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
 ];
 
 // ─── QUESTIONS (10 total) ─────────────────────────────────────────────────────
@@ -205,6 +215,8 @@ function getQualifyingAPY(bank, answers) {
     if (tier.newMoney && !isNew)                               continue;
     if (tier.reqDD && (skipActiveConds || !hasDD))             continue;
     if (tier.reqDD && tier.minDD > 0 && ddAmt < tier.minDD)   continue;
+    // LendingClub LevelUp: requires $250/mo deposit — treat like DD comfort check
+    if (tier.minMonthlyDeposit && skipActiveConds)             continue;
     return { apy: tier.apy, tierLabel: tier.label };
   }
 
@@ -505,6 +517,7 @@ export default function HYSAQuiz() {
       .sort((a, b) => b.qualifyingApy - a.qualifyingApy);
 
     const top4 = ranked.slice(0, 4);
+    const top1 = ranked[0]; // Only verify the #1 ranked bank — one search, one API call
 
     const profileStr = [
       `balance:${ans.balance}`,
@@ -519,15 +532,15 @@ export default function HYSAQuiz() {
       `fees:${ans.fees || "—"}`,
     ].join(" | ");
 
-    // ── STEP 1: Sonnet + web search — verify current rates only ──────────────
-    // Keep this prompt focused on fact-finding, not writing.
-    // Sonnet does the expensive search work; Haiku does the cheap write-up.
-    const searchPrompt = `You are a rate research assistant. Search official bank websites and/or NerdWallet/Bankrate to verify the current APY and key conditions for each bank below. Return your findings as plain text — do NOT write a recommendation.
+    // ── STEP 1: Sonnet + web search — verify top bank only ───────────────────
+    // Searching 4 banks creates 3-4 round-trips that compound token costs
+    // exponentially (each round resends all previous search results).
+    // Verifying only the #1 bank keeps this to a single API call (~5k tokens).
+    const searchPrompt = `Search the official website or NerdWallet/Bankrate for the current APY and key conditions for this ONE bank. Return plain text findings only — no recommendation.
 
-BANKS TO VERIFY:
-${top4.map((b, i) => `${i + 1}. ${b.name} — our stored APY: ${b.qualifyingApy.toFixed(2)}% (${b.tierLabel})`).join('\n')}
+BANK TO VERIFY: ${top1.name} — our stored APY: ${top1.qualifyingApy.toFixed(2)}% (${top1.tierLabel})
 
-For each bank, note: current APY, whether it changed from our stored rate, source name, source date, any key conditions or changes, and any promo expiry dates. Plain text only.`;
+Note: current APY, whether it changed, source name and date, any key conditions, and any promo expiry dates.`;
 
     try {
       const verifiedFindings = await runAgenticSearch(
@@ -536,27 +549,27 @@ For each bank, note: current APY, whether it changed from our stored rate, sourc
       );
 
       // ── STEP 2: Haiku — write the structured recommendation ──────────────
-      // Haiku receives the verified findings + pre-calculated data + profile.
-      // No search tools needed — pure structured output generation.
-      const haikusPrompt = `You are an unbiased HYSA recommendation engine. Based on the verified rate findings and user profile below, produce a single JSON recommendation.
+      const haikusPrompt = `You are an unbiased HYSA recommendation engine. Based on the data below, produce a single JSON recommendation.
 
-VERIFIED RATE FINDINGS (from live web search):
+LIVE-VERIFIED RATE FOR TOP BANK:
 ${verifiedFindings}
 
-PRE-CALCULATED QUALIFYING APYs FOR THIS USER:
+ALL QUALIFYING BANKS FOR THIS USER (pre-calculated from our database):
 ${top4.map((b, i) => `${i + 1}. ${b.name} — ${b.qualifyingApy.toFixed(2)}% | ${b.tierLabel} | Branch:${b.branch ? 'Y' : 'N'} Debit:${b.debit ? 'Y' : 'N'} Invest:${b.investing ? 'Y' : 'N'}`).join('\n')}
 
 USER PROFILE: ${profileStr}
 
-Respond with JSON ONLY (no markdown, no backticks, no preamble):
+The #1 ranked bank above was live-verified. Banks 2-4 use our stored rates. Recommend the best match for this user's profile.
+
+JSON ONLY (no markdown, no backticks):
 {
-  "verified_rates": [{"bank":"name","our_apy":number,"live_apy":number,"changed":boolean,"direction":"up"|"down"|"same","source":"name","source_date":"date","conditions_note":"brief note","promo_expiry":"info or null"}],
+  "verified_rates": [{"bank":"${top1.name}","our_apy":${top1.qualifyingApy},"live_apy":number,"changed":boolean,"direction":"up"|"down"|"same","source":"name","source_date":"date","conditions_note":"brief note","promo_expiry":"info or null"}],
   "bank": "name",
   "account": "account name",
   "apy": number,
   "tier_label": "tier",
   "rate_confidence": "confirmed"|"likely current"|"unverified",
-  "verification_note": "one sentence on what the live search found",
+  "verification_note": "one sentence on what the live search found for the top bank",
   "headline": "max 12 words, specific to this user",
   "summary": "2-3 sentences tied to their profile",
   "top_perks": ["perk 1","perk 2","perk 3"],
