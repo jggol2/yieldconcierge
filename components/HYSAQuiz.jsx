@@ -421,9 +421,33 @@ const CSS = `
 .err{background:#0e0808;border:1px solid #4a2020;padding:28px;text-align:center;margin:40px 0;}
 .err-msg{color:#e07070;font-size:14px;margin-bottom:16px;}
 
+/* ── CHAT ── */
+.chat-section{margin-top:40px;padding-top:40px;border-top:1px solid #1a2030;}
+.chat-intro{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:18px;color:#9a9690;line-height:1.55;margin-bottom:24px;}
+.chat-thread{display:flex;flex-direction:column;gap:14px;margin-bottom:16px;max-height:480px;overflow-y:auto;padding-right:4px;}
+.chat-thread::-webkit-scrollbar{width:3px;}
+.chat-thread::-webkit-scrollbar-track{background:#09090f;}
+.chat-thread::-webkit-scrollbar-thumb{background:#2a3040;}
+.msg-user{align-self:flex-end;max-width:82%;background:#131828;border:1px solid rgba(200,169,110,.2);padding:11px 15px;font-size:14px;color:#ddd8ce;line-height:1.55;}
+.msg-assistant{align-self:flex-start;max-width:90%;background:#0c0f1c;border:1px solid #1a2030;padding:13px 17px;font-size:14px;color:#b0aca4;line-height:1.7;}
+.msg-assistant p{margin-bottom:8px;}.msg-assistant p:last-child{margin-bottom:0;}
+.msg-thinking{align-self:flex-start;padding:11px 17px;background:#0c0f1c;border:1px solid #1a2030;font-family:'DM Mono',monospace;font-size:11px;color:#6a7080;}
+.dots span{animation:blink 1.4s ease infinite;}
+.dots span:nth-child(2){animation-delay:.2s;}
+.dots span:nth-child(3){animation-delay:.4s;}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input{flex:1;background:#0c0f1c;border:1px solid #1e2535;color:#ddd8ce;font-family:'DM Sans',sans-serif;font-size:14px;padding:12px 15px;outline:none;resize:none;transition:border-color .15s;min-height:46px;max-height:120px;}
+.chat-input:focus{border-color:rgba(200,169,110,.4);}
+.chat-input::placeholder{color:#4a5265;}
+.chat-send{background:#c8a96e;color:#09090f;border:none;padding:12px 18px;cursor:pointer;transition:all .18s;font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;flex-shrink:0;align-self:flex-start;}
+.chat-send:hover:not(:disabled){background:#d4b87a;}
+.chat-send:disabled{background:#1a2030;color:#3a404e;cursor:not-allowed;}
+.chat-err{font-family:'DM Mono',monospace;font-size:11px;color:#c07070;margin-top:8px;padding:8px 12px;background:#0e0808;border:1px solid #3a1a1a;}
+
 @keyframes up{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
 @keyframes spin{to{transform:rotate(360deg);}}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+@keyframes blink{0%,100%{opacity:.2;}50%{opacity:1;}}
 `;
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
@@ -438,8 +462,14 @@ export default function HYSAQuiz() {
   const [error, setError]       = useState(null);
   const [showAll, setShowAll]   = useState(false);
   const [animKey, setAnimKey]   = useState(0);
-  const resultRef = useRef(null);
-  const phaseRef  = useRef(null);
+  // ── Chat state ──
+  const [chatMsgs, setChatMsgs]       = useState([]);
+  const [chatInput, setChatInput]     = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatErr, setChatErr]         = useState(null);
+  const resultRef  = useRef(null);
+  const chatEndRef = useRef(null);
+  const phaseRef   = useRef(null);
 
   const totalQ   = QUESTIONS.length;
   const currentQ = step >= 1 && step <= totalQ ? QUESTIONS[step - 1] : null;
@@ -460,6 +490,11 @@ export default function HYSAQuiz() {
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
     }
   }, [result]);
+
+  // Scroll chat to bottom on new messages
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMsgs, chatLoading]);
 
   useEffect(() => {
     if (!loading) { clearInterval(phaseRef.current); return; }
@@ -503,6 +538,7 @@ export default function HYSAQuiz() {
     setStep(0); setAnswers({}); setSelected(null);
     setResult(null); setError(null); setSearches([]);
     setShowAll(false);
+    setChatMsgs([]); setChatInput(""); setChatErr(null);
   }
 
   async function runRecommendation(ans) {
@@ -619,6 +655,59 @@ JSON ONLY (no markdown, no backticks):
     } finally {
       setLoading(false);
     }
+  }
+
+  // ── CHAT ────────────────────────────────────────────────────────────────────
+  // Compressed context ~150 tokens vs ~800 for full JSON. Haiku handles all chat.
+  function buildChatContext(res, ans) {
+    const top5 = (res.allRanked || []).slice(0, 5)
+      .map(b => `${b.name} ${b.qualifyingApy.toFixed(2)}%`)
+      .join(", ");
+    return `HYSA concierge. Answer follow-ups in 2-4 sentences, specific to this user.
+
+REC: ${res.bank} ${res.apy}% APY | ${res.tier_label}
+RUNNER-UP: ${res.runner_up || "—"} ${res.runner_up_apy || ""}%
+PROFILE: balance:${ans.balance} | dd:${ans.direct_deposit} | purpose:${ans.purpose || "—"} | conditions:${ans.conditions_comfort || "—"} | branch:${ans.branch || "—"} | debit:${ans.debit || "—"} | investing:${ans.investing || "—"}
+TOP RATES: ${top5}
+
+Be direct and specific. No generic advice.`;
+  }
+
+  async function sendChat(text) {
+    const msg = text.trim();
+    if (!msg || chatLoading || !result) return;
+    setChatErr(null);
+    const history = [...chatMsgs, { role: "user", content: msg }];
+    setChatMsgs(history);
+    setChatInput("");
+    setChatLoading(true);
+    try {
+      const resp = await fetchWithTimeout("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 512,
+          system: buildChatContext(result, answers),
+          messages: history.slice(-6).map(m => ({ role: m.role, content: m.content })),
+        }),
+      }, 30000);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error?.message || `API ${resp.status}`);
+      const reply = (data.content?.find(b => b.type === "text")?.text || "")
+        .replace(/]*>([\s\S]*?)<\/antml:cite>/gi, "$1").trim()
+        || "I couldn't generate a response — please try again.";
+      setChatMsgs(p => [...p, { role: "assistant", content: reply }]);
+    } catch (err) {
+      setChatErr(err.message?.includes("timed out") ? "Request timed out — please try again." : `Error: ${err.message}`);
+      setChatMsgs(history.slice(0, -1));
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  function handleChatKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(chatInput); }
   }
 
   const progress = step >= 1 && step <= totalQ ? (step / totalQ) * 100 : step > totalQ ? 100 : 0;
@@ -831,6 +920,55 @@ JSON ONLY (no markdown, no backticks):
               <button className="restart" onClick={restart} style={{ marginTop: 32 }}>
                 ↺ Start over with different answers
               </button>
+
+              {/* ── CONCIERGE CHAT ── */}
+              <div className="chat-section">
+                <div className="section-hdr">Ask a follow-up</div>
+                <p className="chat-intro">
+                  Have questions about your recommendation? Ask anything — what happens if you lose direct deposit, how the top two compare, how to open the account.
+                </p>
+
+                {/* Thread */}
+                {chatMsgs.length > 0 && (
+                  <div className="chat-thread">
+                    {chatMsgs.map((m, i) => (
+                      <div key={i} className={m.role === "user" ? "msg-user" : "msg-assistant"}>
+                        {m.content.split("\n").filter(Boolean).map((line, j) => (
+                          <p key={j}>{line}</p>
+                        ))}
+                      </div>
+                    ))}
+                    {chatLoading && (
+                      <div className="msg-thinking">
+                        <span className="dots"><span>●</span><span>●</span><span>●</span></span>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+                )}
+
+                {chatErr && <div className="chat-err">{chatErr}</div>}
+
+                {/* Input */}
+                <div className="chat-input-row">
+                  <textarea
+                    className="chat-input"
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    onKeyDown={handleChatKey}
+                    placeholder="e.g. What if I can't do direct deposit? · How do I open this account? · Compare the top two options…"
+                    rows={2}
+                    disabled={chatLoading}
+                  />
+                  <button
+                    className="chat-send"
+                    onClick={() => sendChat(chatInput)}
+                    disabled={!chatInput.trim() || chatLoading}
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
 
               <div className="disc">
                 Rate verification performed {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
