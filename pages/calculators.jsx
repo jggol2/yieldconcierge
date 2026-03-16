@@ -326,9 +326,22 @@ const css = `
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function Calculators() {
   // ── Savings Growth state ──
-  const [startBal,   setStartBal]   = useState('10000');
-  const [apy,        setApy]        = useState('4.09');
-  const [monthly,    setMonthly]    = useState('500');
+  const [startBal,      setStartBal]      = useState('10000');
+  const [startBalDisplay, setStartBalDisplay] = useState('10,000');
+  const [apy,           setApy]           = useState('4.09');
+  const [monthly,       setMonthly]       = useState('500');
+
+  // Format a numeric string with commas
+  function formatWithCommas(val) {
+    const digits = val.replace(/[^0-9]/g, '');
+    return digits ? parseInt(digits, 10).toLocaleString() : '';
+  }
+
+  function handleStartBalChange(e) {
+    const raw = e.target.value.replace(/[^0-9]/g, '');
+    setStartBal(raw);
+    setStartBalDisplay(raw ? parseInt(raw, 10).toLocaleString() : '');
+  }
 
   // ── APY Calculator state ──
   const [nomRate,    setNomRate]    = useState('4.00');
@@ -382,7 +395,6 @@ export default function Calculators() {
 
           {/* ── SAVINGS GROWTH CALCULATOR ── */}
           <div className="calc-section">
-            <div className="calc-section-label">Calculator 01</div>
             <h2 className="calc-section-h">Savings Growth</h2>
             <p className="calc-section-sub">
               Enter your starting balance, APY, and monthly additions to see how your savings compound over time.
@@ -396,9 +408,10 @@ export default function Calculators() {
                   <span className="input-prefix">$</span>
                   <input
                     className="calc-input has-prefix"
-                    type="number" min="0" step="100"
-                    value={startBal}
-                    onChange={e => setStartBal(e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={startBalDisplay}
+                    onChange={handleStartBalChange}
                     placeholder="10,000"
                   />
                 </div>
@@ -496,7 +509,6 @@ export default function Calculators() {
 
           {/* ── APY CALCULATOR ── */}
           <div className="calc-section">
-            <div className="calc-section-label">Calculator 02</div>
             <h2 className="calc-section-h">APY Calculator</h2>
             <p className="calc-section-sub">
               Convert a nominal interest rate to its true Annual Percentage Yield based on compounding frequency. A higher compounding frequency means slightly more interest earned.
@@ -538,11 +550,11 @@ export default function Calculators() {
               <div className="apy-big-card">
                 <div className="apy-big-label">True APY</div>
                 <div>
-                  <span className="apy-big-value">{apyResult.apy.toFixed(4)}</span>
+                  <span className="apy-big-value">{apyResult.apy.toFixed(2)}</span>
                   <span className="apy-big-pct">%</span>
                 </div>
                 <div className="apy-big-note">
-                  +{apyResult.gain.toFixed(4)}% above nominal rate
+                  +{apyResult.gain.toFixed(2)}% above nominal rate
                 </div>
               </div>
               <div className="apy-detail-card">
@@ -556,7 +568,7 @@ export default function Calculators() {
                 </div>
                 <div className="apy-detail-row">
                   <span className="apy-detail-key">True APY</span>
-                  <span className="apy-detail-val apy-gain">{apyResult.apy.toFixed(4)}%</span>
+                  <span className="apy-detail-val apy-gain">{apyResult.apy.toFixed(2)}%</span>
                 </div>
                 <div className="apy-detail-row">
                   <span className="apy-detail-key">$10,000 after 1 year</span>
