@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
@@ -28,35 +29,13 @@ const css = `
   .header-logo {
     display: flex;
     align-items: center;
-    gap: 10px;
     text-decoration: none;
     cursor: pointer;
   }
-  .logo-mark {
-    width: 28px;
-    height: 28px;
-    border: 1.5px solid #c8a96e;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .logo-mark-inner {
-    width: 8px;
-    height: 8px;
-    background: #c8a96e;
-    border-radius: 50%;
-  }
-  .logo-text {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 18px;
-    font-weight: 500;
-    color: #f0ece2;
-    letter-spacing: 0.2px;
-  }
-  .logo-text span {
-    color: #c8a96e;
-    font-style: italic;
+  .header-logo img {
+    height: 36px;
+    width: auto;
+    display: block;
   }
 
   .header-nav {
@@ -138,13 +117,12 @@ const css = `
     flex-direction: column;
     gap: 8px;
   }
-  .footer-logo {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 15px;
-    font-weight: 500;
-    color: #706c66;
+  .footer-logo img {
+    height: 52px;
+    width: auto;
+    display: block;
+    opacity: 0.55;
   }
-  .footer-logo span { color: #c8a96e; font-style: italic; }
   .footer-disc {
     font-family: 'DM Mono', monospace;
     font-size: 9px;
@@ -195,14 +173,37 @@ export default function Layout({ children }) {
 
   return (
     <>
+      <Head>
+        <title>Yield Concierge — Find Your Best HYSA Rate</title>
+        <meta name="description" content="Answer 10 questions and get a personalized high-yield savings account recommendation with live rate verification." />
+
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <meta name="theme-color" content="#09090f" />
+
+        {/* Open Graph */}
+        <meta property="og:title" content="Yield Concierge" />
+        <meta property="og:description" content="Personalized high-yield savings recommendations with live rate verification." />
+        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://yieldconcierge.com" />
+
+        {/* Fonts */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      </Head>
+
       <style>{css}</style>
+
       <div className="layout-root">
         <header className="header">
           <Link href="/" className="header-logo">
-            <div className="logo-mark">
-              <div className="logo-mark-inner" />
-            </div>
-            <div className="logo-text">Yield <span>Concierge</span></div>
+            <img src="/logo-horizontal.svg" alt="Yield Concierge" />
           </Link>
 
           <nav className="header-nav">
@@ -225,11 +226,15 @@ export default function Layout({ children }) {
 
         <footer className="footer">
           <div className="footer-left">
-            <div className="footer-logo">Yield <span>Concierge</span></div>
+            <div className="footer-logo">
+              <img src="/logo-stacked.svg" alt="Yield Concierge" />
+            </div>
             <div className="footer-disc">
               Rates verified periodically from official bank websites and reputable aggregators.
               APYs are variable and subject to change. Always verify directly with each institution
-              before opening an account. This tool is independent — no banks pay for placement or recommendations.
+              before opening an account. Yield Concierge is independent — banks do not pay for
+              placement or influence our recommendations. We may earn a referral commission if you
+              open an account through our links, at no cost to you.
             </div>
           </div>
           <div className="footer-right">
