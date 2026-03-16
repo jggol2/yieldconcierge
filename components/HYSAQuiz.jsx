@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 
 // ─── BANK DATA (March 15, 2026) ───────────────────────────────────────────────
 const BANKS = [
-  { id:"sofi",            name:"SoFi",                   account:"Checking & Savings",          baseApy:1.00, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Best all-in-one app. DD unlocks 3.30%. SoFi Plus promo 4.00% for new customers — EXPIRES MARCH 30 2026. Strong debit + investing. Instant transfers between SoFi accounts." },
-  { id:"wealthfront",     name:"Wealthfront",             account:"Cash Account",                baseApy:3.30, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:1,   slowTransfer:false, notes:"Flat 3.30% standard (raised from 3.10% on 1/30/2026), no conditions. Welcome Offer 3.95% for new accounts: new money only, first 3 months, up to $150k (requires opening new Wealthfront brokerage account). $8M FDIC via partners." },
+  { id:"sofi",            name:"SoFi",                   account:"Checking & Savings",          baseApy:1.00, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"3.30% APY with eligible DD OR $5,000+ in qualifying deposits every 31 days; 1.00% without. Eligible DD = paycheck, pension, or government benefits (Social Security etc.) via ACH from employer, payroll provider, or government agency — any amount qualifies for 3.30% APY. NOT eligible: P2P transfers (PayPal, Venmo), transfers between own SoFi accounts, interest/credits/bonuses from SoFi. $5k/31-day path: ACH from external banks counts, but NOT internal SoFi transfers or P2P. $1,000+ DD required separately for overdraft coverage (separate benefit). SoFi Plus promo (4.00% APY) for NEW customers EXPIRES MARCH 30 2026 — after that, Plus requires $10/month subscription but high APY still available with DD or $5k deposits. Strong debit + investing. Instant internal transfers." },
+  { id:"wealthfront",     name:"Wealthfront",             account:"Cash Account",                baseApy:3.30, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:1,   slowTransfer:false, notes:"3.30% base APY — NO conditions, no minimum balance, no monthly fees. Additional permanent +0.25% APY boost (→3.55%) if: (1) direct deposit $1,000+/month AND (2) have a funded Wealthfront investing account — both required, ongoing. NOT a bank — cash mgmt account sweeping funds to up to 32 program banks for up to $8M FDIC ($16M joint). No account fees, no overdraft fees. Debit card + 19,000 free ATMs; 2 out-of-network reimbursements/month (up to $7.50 each). Free 24/7 instant withdrawals to eligible external accounts. Free wire transfers. Phone support weekdays 7am-5pm PT only — no weekend live support, no chat. Referral boost: +0.75% for 3 months (stacks on top of base or boost rate)." },
   { id:"marcus",          name:"Marcus by Goldman Sachs", account:"Online Savings Account",      baseApy:3.65, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"No conditions, no fees, no debit. Flat 3.65% from Goldman Sachs. Trusted brand. Transfers typically 1 business day to linked accounts. Best for pure savers who want simplicity." },
-  { id:"betterment",      name:"Betterment",              account:"Cash Reserve",                baseApy:3.25, branch:false, debit:false, investing:true,  fee:0, feeWaivable:false, minOpen:10,  slowTransfer:false, notes:"Flat 3.25% standard. New customer boost: 3.90% for first 3 months (0.65% boost). Best-in-class robo-advisor. No debit card on cash reserve. $10 min to open." },
+  { id:"betterment",      name:"Betterment",              account:"Cash Reserve",                baseApy:3.25, branch:false, debit:false, investing:true,  fee:0, feeWaivable:false, minOpen:10,  slowTransfer:false, notes:"3.25% flat base APY — NO ongoing conditions, no minimum balance, no DD required. $10 minimum to open. NOT a bank — sweeps funds to up to 8 program banks for up to $2M FDIC ($4M joint). New client boost: +0.65% for 3 months with any qualifying deposit (deposit must settle within 14 days of opening). Existing clients may receive targeted +0.65% boost offers via email for $5k-$25k deposits. No debit card on Cash Reserve itself (separate Betterment Checking account exists). No monthly fees. APY is variable and changes with Fed rate. Phone support weekdays 9am-8pm ET only. Requires Betterment Securities brokerage account to open Cash Reserve — this is created automatically. Strong robo-advisor integration." },
   { id:"axos",            name:"Axos Bank",               account:"ONE Savings (bundle)",        baseApy:1.00, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Highest conditional rate (4.21%) for users meeting DD + balance mins. Requires Axos ONE Checking bundle. 95,000+ fee-free ATMs. No investing. Base rate is only 1% without conditions." },
   { id:"openbank",        name:"Openbank",                account:"High Yield Savings",          baseApy:4.09, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:500, slowTransfer:false, notes:"Digital subsidiary of Santander. No conditions for 4.09% — highest unconditional flat rate. $500 min to open. Online/app only. No debit. Transfers typically 1-2 days." },
   { id:"bread",           name:"Bread Savings",           account:"High Yield Savings",          baseApy:4.00, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:100, slowTransfer:true,  notes:"Flat 4.00% APY, $100 min to open, no monthly fees. No debit or checking. Online only. Paper statements $5. ACH transfers can take 1-3 business days. Not ideal if you need fast access." },
@@ -25,7 +25,7 @@ const BANKS = [
   { id:"western_alliance", name:"Western Alliance Bank", account:"High-Yield Savings Premier",  baseApy:3.80, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:500, slowTransfer:true,  notes:"Major FDIC bank ($90B+ assets). Flat 3.80% no conditions. $500 min to open. ACH only — one linked external account. Deposits take 5 business days. No debit. Well-reviewed. Joint accounts available." },
   { id:"forbright",       name:"Forbright Bank",          account:"Growth Savings",             baseApy:3.85, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.85%, no minimum, no fees. Eco-certified FDIC bank. No debit/ATM. Unlimited transfers. M-F customer service only. Highly rated by NerdWallet and Bankrate. Online only." },
   { id:"synchrony",       name:"Synchrony Bank",          account:"High Yield Savings",         baseApy:3.50, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"Flat 3.50%, no conditions, no minimum. Unique: optional ATM debit card with $5/mo fee reimbursement — one of few HYSAs offering this with no requirements. 90-year history. 4.8-star iOS app. FDIC." },
-  { id:"lendingclub",     name:"LendingClub Bank",        account:"LevelUp Savings",            baseApy:3.00, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"LevelUp rate: 4.00% APY with $250+ monthly deposit; 3.00% without. Free ATM card. No fees, no minimum. FDIC. Well-reviewed. Simpler condition than DD accounts — just add $250/mo." },
+  { id:"lendingclub",     name:"LendingClub Bank",        account:"LevelUp Savings",            baseApy:3.00, branch:false, debit:true,  investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, notes:"LevelUp rate: 4.00% APY with $250+ monthly deposit per statement cycle; 3.00% without. ANY deposit counts toward the $250 — ACH transfers, direct deposit, wire, mobile check deposit, etc. Interest payments, account bonuses, and bank credits do NOT count. Multiple deposits in a month combine toward the $250. No minimum per individual deposit. Free ATM card. No fees, no minimum balance. FDIC. New accounts earn 4.00% automatically for first two statement cycles." },
 ];
 
 // ─── TIERS ────────────────────────────────────────────────────────────────────
@@ -663,14 +663,26 @@ JSON ONLY (no markdown, no backticks):
     const top5 = (res.allRanked || []).slice(0, 5)
       .map(b => `${b.name} ${b.qualifyingApy.toFixed(2)}%`)
       .join(", ");
-    return `HYSA concierge. Answer follow-ups in 2-4 sentences, specific to this user.
+
+    // Pull verified notes for the top 2 banks so Haiku answers from facts not guesses
+    const recBank     = BANKS.find(b => b.name === res.bank);
+    const runnerBank  = BANKS.find(b => b.name === res.runner_up);
+    const bankDetails = [
+      recBank    ? `${recBank.name}: ${recBank.notes}`    : null,
+      runnerBank ? `${runnerBank.name}: ${runnerBank.notes}` : null,
+    ].filter(Boolean).join("\n");
+
+    return `HYSA concierge. Answer follow-ups in 2-4 sentences using ONLY the verified bank details below — do not invent or assume conditions not stated here.
 
 REC: ${res.bank} ${res.apy}% APY | ${res.tier_label}
 RUNNER-UP: ${res.runner_up || "—"} ${res.runner_up_apy || ""}%
 PROFILE: balance:${ans.balance} | dd:${ans.direct_deposit} | purpose:${ans.purpose || "—"} | conditions:${ans.conditions_comfort || "—"} | branch:${ans.branch || "—"} | debit:${ans.debit || "—"} | investing:${ans.investing || "—"}
 TOP RATES: ${top5}
 
-Be direct and specific. No generic advice.`;
+VERIFIED BANK DETAILS (use these as your source of truth):
+${bankDetails}
+
+Be direct and concise. Do NOT ask follow-up questions. Do NOT end with a question.`;
   }
 
   async function sendChat(text) {
