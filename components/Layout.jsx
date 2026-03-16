@@ -208,6 +208,7 @@ export default function Layout({ children }) {
           <nav className="header-nav">
             <Link href="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>Home</Link>
             <Link href="/about" className={`nav-link ${isActive('/about') ? 'active' : ''}`}>About</Link>
+            <Link href="/calculators" className={`nav-link ${isActive('/calculators') ? 'active' : ''}`}>Calculators</Link>
             <Link href="/find" className="nav-cta">Find my rate →</Link>
           </nav>
 
@@ -235,6 +236,7 @@ export default function Layout({ children }) {
             <div className="footer-links">
               <Link href="/" className="footer-link">Home</Link>
               <Link href="/find" className="footer-link">Find My Rate</Link>
+              <Link href="/calculators" className="footer-link">Calculators</Link>
               <Link href="/about" className="footer-link">About</Link>
             </div>
             <div className="footer-copy">© {new Date().getFullYear()} Yield Concierge. All rights reserved.</div>
