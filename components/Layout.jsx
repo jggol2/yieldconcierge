@@ -32,11 +32,6 @@ const css = `
     text-decoration: none;
     cursor: pointer;
   }
-  .header-logo img {
-    height: 36px;
-    width: auto;
-    display: block;
-  }
 
   .header-nav {
     display: flex;
@@ -117,10 +112,9 @@ const css = `
     flex-direction: column;
     gap: 8px;
   }
-  .footer-logo img {
-    height: 52px;
-    width: auto;
-    display: block;
+  .footer-logo {
+    display: flex;
+    align-items: center;
     opacity: 0.55;
   }
   .footer-disc {
@@ -203,7 +197,40 @@ export default function Layout({ children }) {
       <div className="layout-root">
         <header className="header">
           <Link href="/" className="header-logo">
-            <img src="/logo-horizontal.svg" alt="Yield Concierge" />
+            {/* Inline SVG — no external file needed, inherits page fonts */}
+            <svg width="210" height="40" viewBox="0 0 210 40" xmlns="http://www.w3.org/2000/svg" aria-label="Yield Concierge">
+              {/* Mark: square frame */}
+              <rect x="1" y="1" width="38" height="38" fill="none" stroke="#c8a96e" strokeWidth="1" rx="1"/>
+              <circle cx="1"  cy="1"  r="1.5" fill="#c8a96e"/>
+              <circle cx="39" cy="1"  r="1.5" fill="#c8a96e"/>
+              <circle cx="1"  cy="39" r="1.5" fill="#c8a96e"/>
+              <circle cx="39" cy="39" r="1.5" fill="#c8a96e"/>
+              {/* Axis guides */}
+              <line x1="7" y1="33" x2="34" y2="33" stroke="#c8a96e" strokeWidth="0.5" opacity="0.25"/>
+              <line x1="7" y1="7"  x2="7"  y2="33" stroke="#c8a96e" strokeWidth="0.5" opacity="0.25"/>
+              {/* Yield curve */}
+              <path d="M 7 30 C 11 20 22 11 34 8" fill="none" stroke="#c8a96e" strokeWidth="2" strokeLinecap="round"/>
+              {/* Start dot */}
+              <circle cx="7"  cy="30" r="1.5" fill="none" stroke="#c8a96e" strokeWidth="1" opacity="0.5"/>
+              {/* Peak dot */}
+              <circle cx="34" cy="8"  r="3.5" fill="#c8a96e"/>
+              {/* Divider */}
+              <line x1="52" y1="6" x2="52" y2="34" stroke="#c8a96e" strokeWidth="0.75" opacity="0.3"/>
+              {/* "Yield" — uses Cormorant Garamond already loaded by Head */}
+              <text x="62" y="30"
+                fontFamily="'Cormorant Garamond', Georgia, serif"
+                fontStyle="italic"
+                fontWeight="400"
+                fontSize="26"
+                fill="#ddd8ce"
+                letterSpacing="-0.3">Yield</text>
+              {/* "CONCIERGE" */}
+              <text x="65" y="39"
+                fontFamily="'DM Mono', 'Courier New', monospace"
+                fontSize="7.5"
+                fill="#c8a96e"
+                letterSpacing="3.5">CONCIERGE</text>
+            </svg>
           </Link>
 
           <nav className="header-nav">
@@ -227,7 +254,32 @@ export default function Layout({ children }) {
         <footer className="footer">
           <div className="footer-left">
             <div className="footer-logo">
-              <img src="/logo-stacked.svg" alt="Yield Concierge" />
+              <svg width="130" height="48" viewBox="0 0 130 48" xmlns="http://www.w3.org/2000/svg" aria-label="Yield Concierge">
+                {/* Mark */}
+                <rect x="1" y="1" width="32" height="32" fill="none" stroke="#c8a96e" strokeWidth="1" rx="1"/>
+                <circle cx="1"  cy="1"  r="1.5" fill="#c8a96e"/>
+                <circle cx="33" cy="1"  r="1.5" fill="#c8a96e"/>
+                <circle cx="1"  cy="33" r="1.5" fill="#c8a96e"/>
+                <circle cx="33" cy="33" r="1.5" fill="#c8a96e"/>
+                <line x1="6" y1="28" x2="28" y2="28" stroke="#c8a96e" strokeWidth="0.5" opacity="0.25"/>
+                <line x1="6" y1="6"  x2="6"  y2="28" stroke="#c8a96e" strokeWidth="0.5" opacity="0.25"/>
+                <path d="M 6 25 C 9 17 18 9 28 6" fill="none" stroke="#c8a96e" strokeWidth="1.75" strokeLinecap="round"/>
+                <circle cx="6"  cy="25" r="1.5" fill="none" stroke="#c8a96e" strokeWidth="1" opacity="0.5"/>
+                <circle cx="28" cy="6"  r="3"   fill="#c8a96e"/>
+                {/* Text */}
+                <text x="42" y="24"
+                  fontFamily="'Cormorant Garamond', Georgia, serif"
+                  fontStyle="italic"
+                  fontWeight="400"
+                  fontSize="22"
+                  fill="#ddd8ce"
+                  letterSpacing="-0.3">Yield</text>
+                <text x="44" y="34"
+                  fontFamily="'DM Mono', 'Courier New', monospace"
+                  fontSize="6.5"
+                  fill="#c8a96e"
+                  letterSpacing="3">CONCIERGE</text>
+              </svg>
             </div>
             <div className="footer-disc">
               Rates verified periodically from official bank websites and reputable aggregators.
