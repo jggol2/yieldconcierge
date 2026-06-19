@@ -273,7 +273,7 @@ async function runAgenticSearch(prompt, onSearch) {
     const resp = await fetchWithTimeout("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 2000, tools, messages }),
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 2000, tools, messages }),
     });
 
     if (!resp.ok) {
