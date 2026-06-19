@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { RATES_LAST_VERIFIED } from "../config/site-config";
 
 // ─── BANK DATA (Updated June 19, 2026) ───────────────────────────────────────
 // affiliateUrl: replace placeholder value with your live tracking link once approved.
@@ -1055,7 +1056,7 @@ Be direct and concise. Do NOT ask follow-up questions. Do NOT end with a questio
               </div>
 
               <div className="disc">
-                Rate verification performed {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
+                Rate verification performed {RATES_LAST_VERIFIED}.
                 APYs are variable — verify directly with each institution before opening an account.
                 Yield Concierge is independent. Banks do not pay for placement or influence our recommendations.
                 We may earn a referral commission if you open an account through our links, at no cost to you.
