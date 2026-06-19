@@ -282,7 +282,7 @@ export default function Home() {
         <section className="hero">
           <div className="hero-tag">
             <span className="hero-tag-dot" />
-            Live savings rate analysis · March 2026
+            Live savings rate analysis · import { RATES_LAST_VERIFIED_SHORT } from '../config/site-config';
           </div>
           <h1 className="hero-h">Yield</h1>
           <h1 className="hero-h"><em>Concierge</em></h1>
