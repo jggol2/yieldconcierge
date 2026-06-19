@@ -6,7 +6,7 @@ import { RATES_LAST_VERIFIED } from "../config/site-config";
 // Network key: [impact] = Impact.com  [cj] = CJ Affiliate  [direct] = contact bank marketing
 const BANKS = [
   { id:"sofi",            name:"SoFi",                   account:"Checking & Savings",          baseApy:1.00, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, affiliateUrl:"https://sofi.com/banking/savings-account/?ref=REPLACE_IMPACT_ID",           notes:"3.10% APY (reduced from 3.30% in 2026) with eligible DD OR $5,000+ in qualifying deposits every 31 days; 1.00% without. Eligible DD = paycheck, pension, or government benefits (Social Security etc.) via ACH from employer, payroll provider, or government agency — any amount qualifies for 3.10% APY. NOT eligible: P2P transfers (PayPal, Venmo), transfers between own SoFi accounts, interest/credits/bonuses from SoFi. $5k/31-day path: ACH from external banks counts, but NOT internal SoFi transfers or P2P. $1,000+ DD required separately for overdraft coverage (separate benefit). NEW MEMBER BOOST: new Checking & Savings members get +0.70% APY (→3.80%) for up to 6 months with eligible DD or qualifying deposits (rate current as of 5/28/2026). Cash sign-up bonus $50–$400 for setting up DD, running 5/15/2026–12/31/2026 ($50 for $1k–$4,999 DD; $400 for $5k+). SoFi Plus paid subscription ($10/month, $120/year): earns 4.50% APY on first $20,000 and 3.10% on the rest — requires DD. Break-even vs standard 3.10% DD tier is ~$8,600 balance. At $10k–$20k balances the Plus subscription is among the highest effective net APYs available. Strong debit + investing. Instant internal transfers." },
-  { id:"wealthfront",     name:"Wealthfront",             account:"Cash Account",                baseApy:3.30, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:1,   slowTransfer:false, affiliateUrl:"https://www.wealthfront.com/cash?ref=REPLACE_IMPACT_ID",                    notes:"3.30% base APY — NO conditions, no minimum balance, no monthly fees. Additional permanent +0.25% APY boost (→3.55%) if: (1) direct deposit $1,000+/month AND (2) have a funded Wealthfront investing account — both required, ongoing. NOT a bank — cash mgmt account sweeping funds to up to 32 program banks for up to $8M FDIC ($16M joint). No account fees, no overdraft fees. Debit card + 19,000 free ATMs; 2 out-of-network reimbursements/month (up to $7.50 each). Free 24/7 instant withdrawals to eligible external accounts. Free wire transfers. Phone support weekdays 7am-5pm PT only — no weekend live support, no chat. Referral boost: +0.75% for 3 months (stacks on top of base or boost rate)." },
+  { id:"wealthfront",     name:"Wealthfront",             account:"Cash Account",                baseApy:3.30, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:1,   slowTransfer:false, affiliateUrl:"https://www.wealthfront.com/cash?ref=REPLACE_IMPACT_ID",                    notes:"3.30% base APY — NO conditions, no minimum balance, no monthly fees (verified directly on wealthfront.com June 2026). Two stackable boosts available — both stack for a maximum 4.20% APY for new clients with DD+Invest in first 3 months: (1) NEW CLIENT BOOST: +0.65% APY for 3 months after opening any Cash Account (→ 3.95% for 3 months), applies on up to $150,000 balance. (2) DD + INVEST BOOST: +0.25% APY, permanent, no expiration, no balance limit — requires both $1,000+/month direct deposit AND a funded Wealthfront investing account (both must be active). Stacked: new client + DD + Invest = 4.20% for first 3 months (3.30 + 0.65 + 0.25), then 3.55% ongoing (3.30 + 0.25). NOT a bank — cash mgmt account sweeping funds to up to 32 program banks for up to $8M FDIC ($16M joint). No account fees, no overdraft fees. Debit card + 19,000 free ATMs; 2 out-of-network reimbursements/month (up to $7.50 each). Free 24/7 instant withdrawals to eligible external accounts. Free wire transfers. Phone support weekdays 7am-5pm PT only — no weekend live support, no chat." },
   { id:"marcus",          name:"Marcus by Goldman Sachs", account:"Online Savings Account",      baseApy:3.40, branch:false, debit:false, investing:false, fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, affiliateUrl:"https://www.marcus.com/us/en/savings/high-yield-savings?ref=REPLACE_CJ_ID",  notes:"No conditions, no fees, no debit. Flat 3.40% from Goldman Sachs (reduced from 3.65% in 2026). Trusted brand. Transfers typically 1 business day to linked accounts. Best for pure savers who want simplicity." },
   { id:"betterment",      name:"Betterment",              account:"Cash Reserve",                baseApy:3.25, branch:false, debit:false, investing:true,  fee:0, feeWaivable:false, minOpen:10,  slowTransfer:false, affiliateUrl:"https://www.betterment.com/cash-reserve?ref=REPLACE_IMPACT_ID",             notes:"3.25% flat base APY — NO ongoing conditions, no minimum balance, no DD required. $10 minimum to open. NOT a bank — sweeps funds to up to 8 program banks for up to $2M FDIC ($4M joint). New client boost: +0.65% for 3 months with any qualifying deposit (deposit must settle within 14 days of opening). Existing clients may receive targeted +0.65% boost offers via email for $5k-$25k deposits. No debit card on Cash Reserve itself (separate Betterment Checking account exists). No monthly fees. APY is variable and changes with Fed rate. Phone support weekdays 9am-8pm ET only. Requires Betterment Securities brokerage account to open Cash Reserve — this is created automatically. Strong robo-advisor integration." },
   { id:"axos",            name:"Axos Bank",               account:"Summit Savings / ONE Savings", baseApy:3.75, branch:false, debit:true,  investing:true,  fee:0, feeWaivable:false, minOpen:0,   slowTransfer:false, affiliateUrl:"https://www.axosbank.com/Personal/Savings?ref=REPLACE_CJ_ID",               notes:"Axos offers TWO savings products at different rate strategies: (1) SUMMIT SAVINGS — 3.75% APY on every dollar, no conditions, no minimum balance, no fees, no opening deposit, no debit card. Best for users who want a competitive flat rate with zero hoops. (2) AXOS ONE BUNDLE — up to 4.21% APY on first $249,999 (3.50% on remainder) requires Axos ONE Checking + meeting ONE of two options by the 25th of each month: Option 1 — $1,500+ qualifying monthly DD AND avg daily balance above $1,500; Option 2 — $5,000+ qualifying monthly deposits AND avg daily balance above $5,000. Qualifying deposits = paychecks, payroll, ACH from external banks. NOT qualifying: internal Axos transfers, interest, bonuses, credits/reversals, ATM deposits. BOTH ONE checking and savings must remain open and active on the 25th or neither earns the promo rate. Bundle includes debit card on checking (95,000+ fee-free ATMs). Base rate falls to 1.00% if ONE conditions unmet. Axos Invest available under same login: self-directed brokerage (commission-free stocks/ETFs) and Managed Portfolios (robo-advisor). Online only." },
@@ -38,8 +38,10 @@ const TIERS = [
   { bank:"sofi",        label:"SoFi Plus (paid, $10/mo) — 4.50% on up to $20k",   apy:4.50, minBal:10000,  reqDD:true,  minDD:0,    newMoney:false, newCustomerOnly:false, sort:1, monthlyFee:10, maxBalForBoost:20000 },
   { bank:"sofi",        label:"Standard with Direct Deposit",                      apy:3.10, minBal:0,      reqDD:true,  minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
   { bank:"sofi",        label:"Base Rate (no DD)",                                 apy:1.00, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:3 },
-  { bank:"wealthfront", label:"Welcome Offer (new money + new brokerage, 3 mo)",  apy:3.95, minBal:0,      reqDD:false, minDD:0,    newMoney:true,  newCustomerOnly:true,  sort:1 },
-  { bank:"wealthfront", label:"Standard Rate (no conditions)",                     apy:3.30, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
+  { bank:"wealthfront", label:"New Client + DD + Invest (4.20% for 3 mo, then 3.55%)", apy:4.20, minBal:0, reqDD:true,  minDD:1000, newMoney:false, newCustomerOnly:true,  sort:0 },
+  { bank:"wealthfront", label:"New Client 3-Month Boost (3.95%, no DD required)",      apy:3.95, minBal:0, reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:true,  sort:1 },
+  { bank:"wealthfront", label:"DD + Invest Boost (3.55%, permanent)",                   apy:3.55, minBal:0, reqDD:true,  minDD:1000, newMoney:false, newCustomerOnly:false, sort:2 },
+  { bank:"wealthfront", label:"Standard Rate (no conditions)",                          apy:3.30, minBal:0, reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:3 },
   { bank:"marcus",      label:"Standard Rate (no conditions)",                     apy:3.40, minBal:0,      reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:1 },
   { bank:"betterment",  label:"New Customer Boost — first 3 months",              apy:3.90, minBal:10,     reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:true,  sort:1 },
   { bank:"betterment",  label:"Standard Rate (no conditions)",                     apy:3.25, minBal:10,     reqDD:false, minDD:0,    newMoney:false, newCustomerOnly:false, sort:2 },
@@ -642,6 +644,14 @@ USER PROFILE: ${profileStr}
 
 The #1 ranked bank above was live-verified. Banks 2-4 use our stored rates. Recommend the best match for this user's profile.
 
+CRITICAL RATE RULES — VIOLATIONS POISON THE RECOMMENDATION:
+1. The "apy" field in your JSON MUST be one of these two values, no exceptions:
+   (a) The exact pre-calculated qualifying APY shown above for the chosen bank, OR
+   (b) The live-verified APY from the search findings (use this if it differs from our stored value).
+2. NEVER add, subtract, or stack rates from the notes. If our notes say "+0.65% boost" and "+0.25% boost", DO NOT compute 3.30 + 0.65 + 0.25 yourself. Use only an APY number that appears as a single complete value in the data above.
+3. If the live verification shows a different APY than our database for the top bank, set "rate_confidence" to "confirmed", set the "apy" field to the LIVE value, and populate verified_rates with both values so we can update our database.
+4. The "tier_label" must describe the conditions under which the chosen "apy" is actually earnable — not aspirational stacked conditions.
+
 JSON ONLY (no markdown, no backticks):
 {
   "verified_rates": [{"bank":"${top1.name}","our_apy":${top1.qualifyingApy},"live_apy":number,"changed":boolean,"direction":"up"|"down"|"same","source":"name","source_date":"date","conditions_note":"brief note","promo_expiry":"info or null"}],
@@ -689,7 +699,42 @@ JSON ONLY (no markdown, no backticks):
         return val;
       };
 
-      setResult({ ...stripCites(parsed), allRanked: ranked });
+      const finalResult = { ...stripCites(parsed), allRanked: ranked };
+
+      // ── DISCREPANCY CHECK: flag any verified rate that differs from our DB ──
+      // These get logged loudly to console so admin can update HYSAQuiz.jsx.
+      // Threshold: 0.05% (5 basis points) — smaller diffs are likely rounding.
+      const discrepancies = [];
+      (finalResult.verified_rates || []).forEach(vr => {
+        if (vr.changed && typeof vr.live_apy === "number" && typeof vr.our_apy === "number") {
+          const diff = Math.abs(vr.live_apy - vr.our_apy);
+          if (diff >= 0.05) {
+            discrepancies.push(vr);
+            console.warn(
+              `%c[DB DISCREPANCY] ${vr.bank}: our DB shows ${vr.our_apy}% but live source shows ${vr.live_apy}% (${vr.direction}). Source: ${vr.source} (${vr.source_date}). UPDATE HYSAQuiz.jsx.`,
+              "background:#fef3c7;color:#92400e;font-weight:bold;padding:4px 8px;border-radius:4px;"
+            );
+          }
+        }
+      });
+      // Also flag if Haiku's apy doesn't match any pre-calculated tier APY for that bank
+      const chosenBank = ranked.find(b => b.name === finalResult.bank);
+      if (chosenBank && typeof finalResult.apy === "number") {
+        const allTierApys = TIERS.filter(t => t.bank === chosenBank.id).map(t => t.apy);
+        const matchesAnyTier = allTierApys.some(a => Math.abs(a - finalResult.apy) < 0.01);
+        const matchesVerified = (finalResult.verified_rates || []).some(
+          vr => typeof vr.live_apy === "number" && Math.abs(vr.live_apy - finalResult.apy) < 0.01
+        );
+        if (!matchesAnyTier && !matchesVerified) {
+          console.warn(
+            `%c[RATE SYNTHESIS WARNING] ${chosenBank.name}: recommended APY ${finalResult.apy}% doesn't match any DB tier (${allTierApys.join(", ")}%) or verified live rate. Possible hallucination.`,
+            "background:#fee2e2;color:#991b1b;font-weight:bold;padding:4px 8px;border-radius:4px;"
+          );
+        }
+      }
+      finalResult.discrepancies = discrepancies;
+
+      setResult(finalResult);
     } catch (e) {
       console.error(e);
       setError(
