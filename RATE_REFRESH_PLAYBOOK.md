@@ -87,6 +87,7 @@ With the user's verified spreadsheet returned, apply the corrections to both BAN
 - **Bot protection** — some bank sites (Bread, occasionally Capital One) block automated fetches with Incapsula or similar. When that happens, user verification is the fallback.
 - **Product rename without rate change** — Axos has done this (account names shift). The TIERS labels should reflect current product names.
 - **Promo timing creep** — a promo that "expires March 31" may quietly be extended on the bank's site without aggregator notice, and vice versa.
+- **Anthropic API model deprecation** — model strings in `HYSAQuiz.jsx` (Sonnet for web-search verification, Haiku for recommendation + chat) get deprecated periodically. A 404 response from the API with `not_found_error` usually means a model identifier has been retired. Check https://docs.claude.com for current model strings and update both the Sonnet and Haiku references. The site otherwise looks healthy but the quiz fails silently at the verification step.
 
 ## When to do a full refresh
 
